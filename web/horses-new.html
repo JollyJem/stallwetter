@@ -8,86 +8,93 @@
 </head>
 <body data-page="new">
   <header class="app-header">
-    <h1>StallWetter</h1>
-    <p class="tagline">Decke &amp; Weide für dein Pferd</p>
+    <div class="app-header-row">
+      <div class="app-header-text">
+        <h1>StallWetter</h1>
+        <p class="tagline" data-i18n="app.tagline">Decke &amp; Weide für dein Pferd</p>
+      </div>
+      <div class="lang-switcher" role="group" data-i18n-aria-label="lang.aria">
+        <button type="button" class="lang-btn" data-lang-btn="de" aria-pressed="true">DE</button>
+        <button type="button" class="lang-btn" data-lang-btn="en" aria-pressed="false">EN</button>
+      </div>
+    </div>
   </header>
 
-  <nav class="app-nav" aria-label="Hauptnavigation">
-    <a href="index.html">Heute</a>
-    <a href="horses.html">Pferde verwalten</a>
-    <a href="horses-new.html" class="active">Pferd hinzufügen</a>
+  <nav class="app-nav" data-i18n-aria-label="nav.aria">
+    <a href="index.html" data-i18n="nav.today">Heute</a>
+    <a href="horses.html" data-i18n="nav.horses">Pferde verwalten</a>
+    <a href="horses-new.html" class="active" data-i18n="nav.add">Pferd hinzufügen</a>
   </nav>
 
   <main class="container">
-    <h2 class="heading">Neues Pferd</h2>
-    <p class="subheading">Trage die Eigenschaften deines Pferdes ein.</p>
+    <h2 class="heading" data-i18n="new.heading">Neues Pferd</h2>
+    <p class="subheading" data-i18n="new.subheading">Trage die Eigenschaften deines Pferdes ein.</p>
 
-    <div id="error-state" class="error" hidden>
-      Bitte alle Pflichtfelder ausfüllen.
-    </div>
+    <div id="error-state" class="error" hidden></div>
 
     <form id="horse-form" class="card" novalidate>
       <div class="form-row">
-        <label class="field-label" for="field-name">Name</label>
-        <input type="text" id="field-name" name="name" placeholder="z. B. Luna" autocomplete="off" required />
+        <label class="field-label" for="field-name" data-i18n="new.field.name">Name</label>
+        <input type="text" id="field-name" name="name" data-i18n-placeholder="new.field.namePlaceholder" placeholder="z. B. Luna" autocomplete="off" required />
       </div>
 
       <div class="form-row">
-        <label class="field-label">Standort des Stalls</label>
+        <label class="field-label" data-i18n="new.field.location">Standort des Stalls</label>
         <div class="coords">
           <div>
-            <input type="text" id="field-lat" name="lat" placeholder="Breitengrad" readonly />
+            <input type="text" id="field-lat" name="lat" data-i18n-placeholder="new.field.lat" placeholder="Breitengrad" readonly />
           </div>
           <div>
-            <input type="text" id="field-lng" name="lng" placeholder="Längengrad" readonly />
+            <input type="text" id="field-lng" name="lng" data-i18n-placeholder="new.field.lng" placeholder="Längengrad" readonly />
           </div>
         </div>
-        <button type="button" id="use-location-btn" class="btn-outline btn-block" style="margin-top: 10px;">
+        <button type="button" id="use-location-btn" class="btn-outline btn-block" style="margin-top: 10px;" data-i18n="new.useLocation">
           📍 Aktuellen Standort verwenden
         </button>
       </div>
 
       <div class="form-row">
-        <label class="field-label">Eigenschaften</label>
+        <label class="field-label" data-i18n="new.field.props">Eigenschaften</label>
         <div class="toggle-row">
-          <label for="field-clipped">Geschoren</label>
+          <label for="field-clipped" data-i18n="new.field.clipped">Geschoren</label>
           <input type="checkbox" id="field-clipped" name="clipped" />
         </div>
         <div class="toggle-row">
-          <label for="field-sensitive">Empfindlich</label>
+          <label for="field-sensitive" data-i18n="new.field.sensitive">Empfindlich</label>
           <input type="checkbox" id="field-sensitive" name="sensitive" />
         </div>
       </div>
 
       <div class="form-row">
-        <label class="field-label">Hufrehe-Risiko</label>
-        <div class="risk-row" role="radiogroup" aria-label="Hufrehe-Risiko">
+        <label class="field-label" data-i18n="new.field.risk">Hufrehe-Risiko</label>
+        <div class="risk-row" role="radiogroup" data-i18n-aria-label="new.risk.aria">
           <label class="risk-btn" data-risk="low">
             <input type="radio" name="risk" value="low" />
-            Niedrig
+            <span data-i18n="new.risk.low">Niedrig</span>
           </label>
           <label class="risk-btn" data-risk="medium">
             <input type="radio" name="risk" value="medium" />
-            Mittel
+            <span data-i18n="new.risk.medium">Mittel</span>
           </label>
           <label class="risk-btn" data-risk="high">
             <input type="radio" name="risk" value="high" />
-            Hoch
+            <span data-i18n="new.risk.high">Hoch</span>
           </label>
         </div>
-        <p class="hint">
+        <p class="hint" data-i18n="new.hint">
           Hoch = Hufrehe-Vorgeschichte, EMS oder Cushing.
           Mittel = leichtfutternd, Pony-Rasse, Übergewicht.
         </p>
       </div>
 
       <div class="btn-row">
-        <a href="horses.html" id="cancel-btn" class="btn-outline" style="flex: 1;">Abbrechen</a>
-        <button type="submit" id="save-btn" class="btn-primary" style="flex: 2;">Speichern</button>
+        <a href="horses.html" id="cancel-btn" class="btn-outline" style="flex: 1;" data-i18n="new.cancel">Abbrechen</a>
+        <button type="submit" id="save-btn" class="btn-primary" style="flex: 2;" data-i18n="new.save">Speichern</button>
       </div>
     </form>
   </main>
 
+  <script src="lib/i18n.js"></script>
   <script src="lib/storage.js"></script>
   <script src="app.js"></script>
 </body>

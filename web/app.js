@@ -2,33 +2,27 @@
 (function () {
   'use strict';
 
-  var BLANKET_LABEL = {
-    no: 'Keine Decke',
-    light: 'Leichte Decke',
-    medium: 'Mittlere Decke',
-    heavy: 'Dicke Decke',
-  };
   var BLANKET_BADGE_CLASS = {
     no: 'badge-blanket-no',
     light: 'badge-blanket-light',
     medium: 'badge-blanket-medium',
     heavy: 'badge-blanket-heavy',
   };
-  var GRAZING_LABEL = {
-    safe: 'Weide OK',
-    caution: 'Vorsicht',
-    risky: 'Kein Gras',
-  };
   var GRAZING_BADGE_CLASS = {
     safe: 'badge-grazing-safe',
     caution: 'badge-grazing-caution',
     risky: 'badge-grazing-risky',
   };
-  var RISK_LABEL = {
-    low: 'Risiko: Niedrig',
-    medium: 'Risiko: Mittel',
-    high: 'Risiko: Hoch',
-  };
+
+  function tr(key, vars) {
+    if (window.SW && SW.i18n && typeof SW.i18n.t === 'function') return SW.i18n.t(key, vars);
+    return key;
+  }
+
+  function blanketLabel(b) { return tr('blanket.' + b); }
+  function grazingLabel(g) { return tr('grazing.' + g); }
+  function riskLabel(r) { return tr('risk.' + r); }
+  function cardLabel(role) { return tr('card.' + role); }
 
   function $(sel, root) {
     return (root || document).querySelector(sel);
@@ -40,9 +34,11 @@
     else el.removeAttribute('hidden');
   }
 
-  function formatDateDe(d) {
+  function formatDate(d) {
+    var lang = (window.SW && SW.i18n && SW.i18n.getLang) ? SW.i18n.getLang() : 'de';
+    var locale = lang === 'en' ? 'en-US' : 'de-DE';
     try {
-      return d.toLocaleDateString('de-DE', {
+      return d.toLocaleDateString(locale, {
         weekday: 'long',
         day: '2-digit',
         month: 'long',
@@ -56,13 +52,16 @@
   // ---------- Heute (index.html) ----------
   function initToday() {
     var dateEl = $('#today-date');
-    if (dateEl) dateEl.textContent = formatDateDe(new Date());
-
     var loading = $('#loading');
     var errorState = $('#error-state');
     var emptyState = $('#empty-state');
     var listSection = $('#recommendations-list');
     var template = $('#horse-recommendation-template');
+
+    function refreshDate() {
+      if (dateEl) dateEl.textContent = formatDate(new Date());
+    }
+    refreshDate();
 
     function clearCards() {
       if (!listSection) return;
@@ -74,14 +73,14 @@
       if (!errorState) return;
       errorState.textContent = '';
       var msg = document.createElement('p');
-      msg.textContent =
-        message || 'Wetterdaten konnten nicht geladen werden. Bitte später erneut versuchen.';
+      msg.textContent = message || tr('today.error');
       errorState.appendChild(msg);
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'btn-primary';
       btn.style.marginTop = '12px';
-      btn.textContent = 'Erneut versuchen';
+      btn.textContent = tr('today.retry');
+      btn.setAttribute('data-i18n', 'today.retry');
       btn.addEventListener('click', function () {
         errorState.textContent = '';
         setHidden(errorState, true);
@@ -95,23 +94,24 @@
       if (!template || !template.content) return;
       var node = template.content.firstElementChild.cloneNode(true);
       node.setAttribute('data-horse-id', horse.id);
+      node.setAttribute('data-blanket', blanket.blanket);
+      node.setAttribute('data-grazing', grazing.grazing);
+
       var nameEl = node.querySelector('.horse-name');
       if (nameEl) nameEl.textContent = horse.name;
       var locEl = node.querySelector('.horse-location');
-      if (locEl)
-        locEl.textContent = horse.lat.toFixed(2) + ', ' + horse.lng.toFixed(2);
+      if (locEl) locEl.textContent = horse.lat.toFixed(2) + ', ' + horse.lng.toFixed(2);
 
       var bBadge = node.querySelector('[data-role="blanket-badge"]');
       if (bBadge) {
         bBadge.classList.remove(
-          'badge-blanket-no',
-          'badge-blanket-light',
-          'badge-blanket-medium',
-          'badge-blanket-heavy'
+          'badge-blanket-no', 'badge-blanket-light', 'badge-blanket-medium', 'badge-blanket-heavy'
         );
         bBadge.classList.add(BLANKET_BADGE_CLASS[blanket.blanket]);
+        var bl = bBadge.querySelector('[data-field="blanket-label"]');
+        if (bl) bl.textContent = cardLabel('blanket');
         var bv = bBadge.querySelector('[data-field="blanket-value"]');
-        if (bv) bv.textContent = BLANKET_LABEL[blanket.blanket];
+        if (bv) bv.textContent = blanketLabel(blanket.blanket);
         var br = bBadge.querySelector('[data-field="blanket-reason"]');
         if (br) br.textContent = blanket.reason;
       }
@@ -119,18 +119,38 @@
       var gBadge = node.querySelector('[data-role="grazing-badge"]');
       if (gBadge) {
         gBadge.classList.remove(
-          'badge-grazing-safe',
-          'badge-grazing-caution',
-          'badge-grazing-risky'
+          'badge-grazing-safe', 'badge-grazing-caution', 'badge-grazing-risky'
         );
         gBadge.classList.add(GRAZING_BADGE_CLASS[grazing.grazing]);
+        var gl = gBadge.querySelector('[data-field="grazing-label"]');
+        if (gl) gl.textContent = cardLabel('grazing');
         var gv = gBadge.querySelector('[data-field="grazing-value"]');
-        if (gv) gv.textContent = GRAZING_LABEL[grazing.grazing];
+        if (gv) gv.textContent = grazingLabel(grazing.grazing);
         var gr = gBadge.querySelector('[data-field="grazing-reason"]');
         if (gr) gr.textContent = grazing.reason;
       }
 
       listSection.appendChild(node);
+    }
+
+    function rerenderLabels() {
+      // Re-translate dynamic labels when language changes, without re-fetching.
+      refreshDate();
+      var cards = listSection ? listSection.querySelectorAll('article.horse-card') : [];
+      for (var i = 0; i < cards.length; i++) {
+        var b = cards[i].getAttribute('data-blanket');
+        var g = cards[i].getAttribute('data-grazing');
+        var bl = cards[i].querySelector('[data-field="blanket-label"]');
+        if (bl) bl.textContent = cardLabel('blanket');
+        var bv = cards[i].querySelector('[data-field="blanket-value"]');
+        if (bv && b) bv.textContent = blanketLabel(b);
+        var gl = cards[i].querySelector('[data-field="grazing-label"]');
+        if (gl) gl.textContent = cardLabel('grazing');
+        var gv = cards[i].querySelector('[data-field="grazing-value"]');
+        if (gv && g) gv.textContent = grazingLabel(g);
+      }
+      // Note: blanket.reason / grazing.reason come from the rule engine in
+      // German; left as-is for now.
     }
 
     function load() {
@@ -176,6 +196,7 @@
         });
     }
 
+    if (window.SW && SW.i18n && SW.i18n.onChange) SW.i18n.onChange(rerenderLabels);
     load();
   }
 
@@ -199,8 +220,7 @@
       var nameEl = node.querySelector('.horse-name');
       if (nameEl) nameEl.textContent = horse.name;
       var locEl = node.querySelector('.horse-location');
-      if (locEl)
-        locEl.textContent = horse.lat.toFixed(2) + ', ' + horse.lng.toFixed(2);
+      if (locEl) locEl.textContent = horse.lat.toFixed(2) + ', ' + horse.lng.toFixed(2);
 
       var clippedTag = node.querySelector('.tag-clipped');
       if (clippedTag) setHidden(clippedTag, !horse.clipped);
@@ -208,14 +228,14 @@
       if (sensitiveTag) setHidden(sensitiveTag, !horse.sensitive);
       var riskTag = node.querySelector('.tag-risk');
       if (riskTag) {
-        riskTag.textContent = RISK_LABEL[horse.risk] || '';
+        riskTag.textContent = riskLabel(horse.risk);
         riskTag.setAttribute('data-risk', horse.risk);
       }
 
       var delBtn = node.querySelector('[data-action="delete"]');
       if (delBtn) {
         delBtn.addEventListener('click', function () {
-          if (window.confirm(horse.name + ' wirklich entfernen?')) {
+          if (window.confirm(tr('horses.confirmDelete', { name: horse.name }))) {
             SW.deleteHorse(horse.id).then(render);
           }
         });
@@ -241,6 +261,7 @@
         });
     }
 
+    if (window.SW && SW.i18n && SW.i18n.onChange) SW.i18n.onChange(render);
     render();
   }
 
@@ -276,7 +297,6 @@
         if (!radio) return;
         radio.addEventListener('change', updateRiskActive);
         label.addEventListener('click', function () {
-          // ensure radio is selected then update visual
           setTimeout(updateRiskActive, 0);
         });
       })(riskBtns[i]);
@@ -291,27 +311,31 @@
     }
 
     if (locBtn) {
+      var locBtnDefaultKey = 'new.useLocation';
       locBtn.addEventListener('click', function () {
         if (!navigator.geolocation) {
-          showError('Geolokalisierung wird nicht unterstützt.');
+          showError(tr('new.error.geolocationUnsupported'));
           return;
         }
         clearError();
-        var prev = locBtn.textContent;
         locBtn.disabled = true;
-        locBtn.textContent = 'Standort wird ermittelt…';
+        // Switch i18n key while locating, so a language change mid-flight still translates.
+        locBtn.setAttribute('data-i18n', 'new.locating');
+        locBtn.textContent = tr('new.locating');
         navigator.geolocation.getCurrentPosition(
           function (pos) {
             latInput.value = pos.coords.latitude.toFixed(2);
             lngInput.value = pos.coords.longitude.toFixed(2);
             locBtn.disabled = false;
-            locBtn.textContent = prev;
+            locBtn.setAttribute('data-i18n', locBtnDefaultKey);
+            locBtn.textContent = tr(locBtnDefaultKey);
           },
           function (err) {
             locBtn.disabled = false;
-            locBtn.textContent = prev;
+            locBtn.setAttribute('data-i18n', locBtnDefaultKey);
+            locBtn.textContent = tr(locBtnDefaultKey);
             showError(
-              'Standort konnte nicht ermittelt werden' +
+              tr('new.error.locationFailed') +
                 (err && err.message ? ': ' + err.message : '.')
             );
           },
@@ -330,13 +354,13 @@
         var lngStr = (lngInput.value || '').trim();
 
         if (!name) {
-          showError('Bitte einen Namen eingeben.');
+          showError(tr('new.error.name'));
           return;
         }
         var lat = parseFloat(latStr);
         var lng = parseFloat(lngStr);
         if (isNaN(lat) || isNaN(lng)) {
-          showError('Bitte den Standort ermitteln.');
+          showError(tr('new.error.location'));
           return;
         }
 
@@ -356,7 +380,7 @@
             location.href = 'horses.html';
           })
           .catch(function () {
-            showError('Speichern fehlgeschlagen.');
+            showError(tr('new.error.saveFailed'));
           });
       });
     }

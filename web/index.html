@@ -8,29 +8,33 @@
 </head>
 <body data-page="today">
   <header class="app-header">
-    <h1>StallWetter</h1>
-    <p class="tagline">Decke &amp; Weide für dein Pferd</p>
+    <div class="app-header-row">
+      <div class="app-header-text">
+        <h1>StallWetter</h1>
+        <p class="tagline" data-i18n="app.tagline">Decke &amp; Weide für dein Pferd</p>
+      </div>
+      <div class="lang-switcher" role="group" data-i18n-aria-label="lang.aria">
+        <button type="button" class="lang-btn" data-lang-btn="de" aria-pressed="true">DE</button>
+        <button type="button" class="lang-btn" data-lang-btn="en" aria-pressed="false">EN</button>
+      </div>
+    </div>
   </header>
 
-  <nav class="app-nav" aria-label="Hauptnavigation">
-    <a href="index.html" class="active">Heute</a>
-    <a href="horses.html">Pferde verwalten</a>
-    <a href="horses-new.html">Pferd hinzufügen</a>
+  <nav class="app-nav" data-i18n-aria-label="nav.aria">
+    <a href="index.html" class="active" data-i18n="nav.today">Heute</a>
+    <a href="horses.html" data-i18n="nav.horses">Pferde verwalten</a>
+    <a href="horses-new.html" data-i18n="nav.add">Pferd hinzufügen</a>
   </nav>
 
   <main class="container">
-    <h2 class="heading-lg">Heute</h2>
+    <h2 class="heading-lg" data-i18n="today.heading">Heute</h2>
     <p class="subheading" id="today-date"></p>
 
-    <div id="loading" class="loading" hidden>Wetterdaten werden geladen…</div>
+    <div id="loading" class="loading" data-i18n="today.loading" hidden>Wetterdaten werden geladen…</div>
 
-    <div id="error-state" class="error" hidden>
-      Wetterdaten konnten nicht geladen werden. Bitte später erneut versuchen.
-    </div>
+    <div id="error-state" class="error" hidden></div>
 
-    <section id="recommendations-list" aria-label="Empfehlungen pro Pferd">
-      <!-- Per-horse cards injected by JS. Example template below for the
-           linker agent — kept hidden by default. -->
+    <section id="recommendations-list" data-i18n-aria-label="today.list.aria">
       <template id="horse-recommendation-template">
         <article class="card horse-card">
           <div class="row-between">
@@ -41,13 +45,13 @@
           </div>
 
           <div class="badge badge-blanket-no" data-role="blanket-badge">
-            <span class="label">Decke</span>
+            <span class="label" data-field="blanket-label">Decke</span>
             <span class="value" data-field="blanket-value">—</span>
             <span class="reason" data-field="blanket-reason"></span>
           </div>
 
           <div class="badge badge-grazing-safe" data-role="grazing-badge">
-            <span class="label">Weide</span>
+            <span class="label" data-field="grazing-label">Weide</span>
             <span class="value" data-field="grazing-value">—</span>
             <span class="reason" data-field="grazing-reason"></span>
           </div>
@@ -56,12 +60,13 @@
     </section>
 
     <section id="empty-state" class="empty" hidden>
-      <h3>Noch keine Pferde angelegt</h3>
-      <p>Lege dein erstes Pferd an, um tägliche Decken- und Weide-Empfehlungen zu erhalten.</p>
-      <a href="horses-new.html" class="btn-primary">Pferd hinzufügen</a>
+      <h3 data-i18n="today.empty.title">Noch keine Pferde angelegt</h3>
+      <p data-i18n="today.empty.body">Lege dein erstes Pferd an, um tägliche Decken- und Weide-Empfehlungen zu erhalten.</p>
+      <a href="horses-new.html" class="btn-primary" data-i18n="today.empty.cta">Pferd hinzufügen</a>
     </section>
   </main>
 
+  <script src="lib/i18n.js"></script>
   <script src="lib/storage.js"></script>
   <script src="lib/weather.js"></script>
   <script src="lib/decision.js"></script>

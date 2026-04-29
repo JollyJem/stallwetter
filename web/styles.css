@@ -32,6 +32,17 @@ body {
   margin: 0 auto;
 }
 
+.app-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.app-header-text {
+  min-width: 0;
+}
+
 .app-header h1 {
   font-size: 28px;
   font-weight: 900;
@@ -43,6 +54,44 @@ body {
   margin: 4px 0 0;
   color: #6b7280;
   font-size: 14px;
+}
+
+/* Language switcher */
+.lang-switcher {
+  display: inline-flex;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  padding: 2px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.lang-btn {
+  background: transparent;
+  border: none;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #6b7280;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 0.5px;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.lang-btn:hover {
+  color: #111827;
+}
+
+.lang-btn--active {
+  background: #111827;
+  color: #ffffff;
+}
+
+.lang-btn--active:hover {
+  color: #ffffff;
 }
 
 /* Nav */

@@ -8,32 +8,39 @@
 </head>
 <body data-page="horses">
   <header class="app-header">
-    <h1>StallWetter</h1>
-    <p class="tagline">Decke &amp; Weide für dein Pferd</p>
+    <div class="app-header-row">
+      <div class="app-header-text">
+        <h1>StallWetter</h1>
+        <p class="tagline" data-i18n="app.tagline">Decke &amp; Weide für dein Pferd</p>
+      </div>
+      <div class="lang-switcher" role="group" data-i18n-aria-label="lang.aria">
+        <button type="button" class="lang-btn" data-lang-btn="de" aria-pressed="true">DE</button>
+        <button type="button" class="lang-btn" data-lang-btn="en" aria-pressed="false">EN</button>
+      </div>
+    </div>
   </header>
 
-  <nav class="app-nav" aria-label="Hauptnavigation">
-    <a href="index.html">Heute</a>
-    <a href="horses.html" class="active">Pferde verwalten</a>
-    <a href="horses-new.html">Pferd hinzufügen</a>
+  <nav class="app-nav" data-i18n-aria-label="nav.aria">
+    <a href="index.html" data-i18n="nav.today">Heute</a>
+    <a href="horses.html" class="active" data-i18n="nav.horses">Pferde verwalten</a>
+    <a href="horses-new.html" data-i18n="nav.add">Pferd hinzufügen</a>
   </nav>
 
   <main class="container">
     <div class="row-between" style="margin-bottom: 8px;">
-      <h2 class="heading">Pferde verwalten</h2>
+      <h2 class="heading" data-i18n="horses.heading">Pferde verwalten</h2>
     </div>
-    <p class="subheading">Verwalte deine Pferde und ihre Eigenschaften.</p>
+    <p class="subheading" data-i18n="horses.subheading">Verwalte deine Pferde und ihre Eigenschaften.</p>
 
-    <a href="horses-new.html" id="add-horse-link" class="btn-primary btn-block" style="margin-bottom: 20px;">
+    <a href="horses-new.html" id="add-horse-link" class="btn-primary btn-block" style="margin-bottom: 20px;" data-i18n="horses.add">
       + Pferd hinzufügen
     </a>
 
-    <div id="error-state" class="error" hidden>
+    <div id="error-state" class="error" data-i18n="horses.error" hidden>
       Pferde konnten nicht geladen werden.
     </div>
 
-    <section id="horses-list" aria-label="Pferdeliste">
-      <!-- Horse cards injected by JS. Template below for linker agent. -->
+    <section id="horses-list" data-i18n-aria-label="horses.list.aria">
       <template id="horse-card-template">
         <article class="card horse-card" data-horse-id="">
           <div class="row-between">
@@ -41,12 +48,12 @@
               <h2 class="horse-name"></h2>
               <p class="meta horse-location"></p>
               <div class="horse-meta">
-                <span class="tag tag-clipped" hidden>Geschoren</span>
-                <span class="tag tag-sensitive" hidden>Empfindlich</span>
+                <span class="tag tag-clipped" data-i18n="horses.tag.clipped" hidden>Geschoren</span>
+                <span class="tag tag-sensitive" data-i18n="horses.tag.sensitive" hidden>Empfindlich</span>
                 <span class="tag tag-risk"></span>
               </div>
             </div>
-            <button type="button" class="btn-danger-soft delete-horse-btn" data-action="delete">
+            <button type="button" class="btn-danger-soft delete-horse-btn" data-action="delete" data-i18n="horses.delete">
               Löschen
             </button>
           </div>
@@ -55,12 +62,13 @@
     </section>
 
     <section id="empty-state" class="empty" hidden>
-      <h3>Noch keine Pferde angelegt</h3>
-      <p>Füge dein erstes Pferd hinzu, um loszulegen.</p>
-      <a href="horses-new.html" class="btn-primary">Pferd hinzufügen</a>
+      <h3 data-i18n="horses.empty.title">Noch keine Pferde angelegt</h3>
+      <p data-i18n="horses.empty.body">Füge dein erstes Pferd hinzu, um loszulegen.</p>
+      <a href="horses-new.html" class="btn-primary" data-i18n="horses.empty.cta">Pferd hinzufügen</a>
     </section>
   </main>
 
+  <script src="lib/i18n.js"></script>
   <script src="lib/storage.js"></script>
   <script src="app.js"></script>
 </body>
