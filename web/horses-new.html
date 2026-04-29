@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>StallWetter — Neues Pferd</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body data-page="new">
+  <header class="app-header">
+    <h1>StallWetter</h1>
+    <p class="tagline">Decke &amp; Weide für dein Pferd</p>
+  </header>
+
+  <nav class="app-nav" aria-label="Hauptnavigation">
+    <a href="index.html">Heute</a>
+    <a href="horses.html">Pferde verwalten</a>
+    <a href="horses-new.html" class="active">Pferd hinzufügen</a>
+  </nav>
+
+  <main class="container">
+    <h2 class="heading">Neues Pferd</h2>
+    <p class="subheading">Trage die Eigenschaften deines Pferdes ein.</p>
+
+    <div id="error-state" class="error" hidden>
+      Bitte alle Pflichtfelder ausfüllen.
+    </div>
+
+    <form id="horse-form" class="card" novalidate>
+      <div class="form-row">
+        <label class="field-label" for="field-name">Name</label>
+        <input type="text" id="field-name" name="name" placeholder="z. B. Luna" autocomplete="off" required />
+      </div>
+
+      <div class="form-row">
+        <label class="field-label">Standort des Stalls</label>
+        <div class="coords">
+          <div>
+            <input type="text" id="field-lat" name="lat" placeholder="Breitengrad" readonly />
+          </div>
+          <div>
+            <input type="text" id="field-lng" name="lng" placeholder="Längengrad" readonly />
+          </div>
+        </div>
+        <button type="button" id="use-location-btn" class="btn-outline btn-block" style="margin-top: 10px;">
+          📍 Aktuellen Standort verwenden
+        </button>
+      </div>
+
+      <div class="form-row">
+        <label class="field-label">Eigenschaften</label>
+        <div class="toggle-row">
+          <label for="field-clipped">Geschoren</label>
+          <input type="checkbox" id="field-clipped" name="clipped" />
+        </div>
+        <div class="toggle-row">
+          <label for="field-sensitive">Empfindlich</label>
+          <input type="checkbox" id="field-sensitive" name="sensitive" />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label class="field-label">Hufrehe-Risiko</label>
+        <div class="risk-row" role="radiogroup" aria-label="Hufrehe-Risiko">
+          <label class="risk-btn" data-risk="low">
+            <input type="radio" name="risk" value="low" />
+            Niedrig
+          </label>
+          <label class="risk-btn" data-risk="medium">
+            <input type="radio" name="risk" value="medium" />
+            Mittel
+          </label>
+          <label class="risk-btn" data-risk="high">
+            <input type="radio" name="risk" value="high" />
+            Hoch
+          </label>
+        </div>
+        <p class="hint">
+          Hoch = Hufrehe-Vorgeschichte, EMS oder Cushing.
+          Mittel = leichtfutternd, Pony-Rasse, Übergewicht.
+        </p>
+      </div>
+
+      <div class="btn-row">
+        <a href="horses.html" id="cancel-btn" class="btn-outline" style="flex: 1;">Abbrechen</a>
+        <button type="submit" id="save-btn" class="btn-primary" style="flex: 2;">Speichern</button>
+      </div>
+    </form>
+  </main>
+
+  <script src="lib/storage.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

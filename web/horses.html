@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>StallWetter — Pferde verwalten</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body data-page="horses">
+  <header class="app-header">
+    <h1>StallWetter</h1>
+    <p class="tagline">Decke &amp; Weide für dein Pferd</p>
+  </header>
+
+  <nav class="app-nav" aria-label="Hauptnavigation">
+    <a href="index.html">Heute</a>
+    <a href="horses.html" class="active">Pferde verwalten</a>
+    <a href="horses-new.html">Pferd hinzufügen</a>
+  </nav>
+
+  <main class="container">
+    <div class="row-between" style="margin-bottom: 8px;">
+      <h2 class="heading">Pferde verwalten</h2>
+    </div>
+    <p class="subheading">Verwalte deine Pferde und ihre Eigenschaften.</p>
+
+    <a href="horses-new.html" id="add-horse-link" class="btn-primary btn-block" style="margin-bottom: 20px;">
+      + Pferd hinzufügen
+    </a>
+
+    <div id="error-state" class="error" hidden>
+      Pferde konnten nicht geladen werden.
+    </div>
+
+    <section id="horses-list" aria-label="Pferdeliste">
+      <!-- Horse cards injected by JS. Template below for linker agent. -->
+      <template id="horse-card-template">
+        <article class="card horse-card" data-horse-id="">
+          <div class="row-between">
+            <div>
+              <h2 class="horse-name"></h2>
+              <p class="meta horse-location"></p>
+              <div class="horse-meta">
+                <span class="tag tag-clipped" hidden>Geschoren</span>
+                <span class="tag tag-sensitive" hidden>Empfindlich</span>
+                <span class="tag tag-risk"></span>
+              </div>
+            </div>
+            <button type="button" class="btn-danger-soft delete-horse-btn" data-action="delete">
+              Löschen
+            </button>
+          </div>
+        </article>
+      </template>
+    </section>
+
+    <section id="empty-state" class="empty" hidden>
+      <h3>Noch keine Pferde angelegt</h3>
+      <p>Füge dein erstes Pferd hinzu, um loszulegen.</p>
+      <a href="horses-new.html" class="btn-primary">Pferd hinzufügen</a>
+    </section>
+  </main>
+
+  <script src="lib/storage.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
