@@ -99,6 +99,13 @@ body {
   color: var(--sage-900);
 }
 
+.app-logo {
+  height: 36px;
+  width: auto;
+  display: block;
+  border-radius: 8px;
+}
+
 .app-header h1::before {
   content: "🐴";
   display: inline-flex;
