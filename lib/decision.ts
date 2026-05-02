@@ -1,4 +1,4 @@
-// Pure rule engine for blanket + grazing decisions.
+// Pure rule engine for blanket + grazing + coat-wetting decisions.
 // No I/O. Same input → same output. Easy to unit-test.
 
 export type HorseProfile = {
@@ -8,12 +8,16 @@ export type HorseProfile = {
 };
 
 export type WeatherInput = {
-  tMin: number;            // °C, min over the 24-h window
-  windKmh: number;         // max gust km/h
-  rainMm: number;          // total mm over the day
-  frostOvernight: boolean; // T < 2 °C between 00:00 and 06:00
-  sunnyToday: boolean;     // avg cloud cover < 40 % from 10:00 to 16:00
-  nowHour: number;         // 0..23 local
+  tMin: number;             // °C, raw min over the day
+  tFeelsLikeMin: number;    // °C, OpenWeatherMap "feels like" min (wind + humidity adjusted)
+  windKmh: number;          // max gust km/h
+  rainMm: number;           // total mm over the horizon
+  rainProbability: number;  // 0..1, max forecast probability
+  humidity: number;         // 0..100 %, avg
+  frostOvernight: boolean;  // T < 2 °C between 00:00 and 06:00
+  sunnyToday: boolean;      // avg cloud cover < 40 % from 10:00 to 16:00
+  nowHour: number;          // 0..23 local
+  locationName?: string;
 };
 
 export type BlanketResult = {
@@ -28,23 +32,29 @@ export type GrazingResult = {
   bestWindow: string;
 };
 
-export const LOGIC_VERSION = '1.0.0' as const;
+export type CoatWettingResult = {
+  risk: 'dry' | 'damp' | 'soaked';
+  reason: string;
+};
+
+export const LOGIC_VERSION = '1.1.0' as const;
 
 export function decideBlanket(horse: HorseProfile, w: WeatherInput): BlanketResult {
-  let tEff = w.tMin;
-  const parts: string[] = [`Min ${Math.round(w.tMin)} °C`];
-
-  if (w.windKmh > 45) {
-    tEff -= 4;
-    parts.push(`Wind ${Math.round(w.windKmh)} km/h`);
-  } else if (w.windKmh > 25) {
-    tEff -= 2;
-    parts.push(`Wind ${Math.round(w.windKmh)} km/h`);
-  }
+  let tEff = w.tFeelsLikeMin;
+  const parts: string[] = [`Gefühlt min ${Math.round(w.tFeelsLikeMin)} °C`];
 
   if (w.rainMm > 5) {
-    tEff -= 2;
+    tEff -= 3;
     parts.push(`Regen ${Math.round(w.rainMm)} mm`);
+  } else if (w.rainMm > 1) {
+    tEff -= 1;
+    parts.push('leichter Regen');
+  }
+
+  // High humidity + wet coat → evaporative drying stalls
+  if (w.humidity > 85 && w.rainMm > 0) {
+    tEff -= 1;
+    parts.push(`Luftfeuchte ${Math.round(w.humidity)}%`);
   }
 
   if (horse.sensitive) {
@@ -66,7 +76,7 @@ export function decideBlanket(horse: HorseProfile, w: WeatherInput): BlanketResu
 
   return {
     blanket,
-    reason: `${parts.join(', ')} → gefühlt ${Math.round(tEff)} °C`,
+    reason: `${parts.join(', ')} → effektiv ${Math.round(tEff)} °C`,
   };
 }
 
@@ -105,10 +115,42 @@ export function decideGrazing(horse: HorseProfile, w: WeatherInput): GrazingResu
   return { grazing, score, reason, bestWindow: '05:00 – 10:00' };
 }
 
+export function decideCoatWetting(horse: HorseProfile, w: WeatherInput): CoatWettingResult {
+  const heavyRain = w.rainMm > 5;
+  const someRain = w.rainMm > 0.5;
+  const highProb = w.rainProbability > 0.6;
+  const humid = w.humidity > 85;
+  const cold = w.tFeelsLikeMin < 5;
+
+  if (heavyRain || (someRain && humid && cold)) {
+    const base = `${Math.round(w.rainMm)} mm Regen erwartet`;
+    return {
+      risk: 'soaked',
+      reason: horse.clipped
+        ? `${base} + geschoren → Regendecke nötig, sonst Auskühlung`
+        : `${base}, Luftfeuchte ${Math.round(w.humidity)}% → Fell trocknet kaum`,
+    };
+  }
+  if (someRain || (highProb && humid)) {
+    return {
+      risk: 'damp',
+      reason: highProb
+        ? `Regen-Wahrscheinlichkeit ${Math.round(w.rainProbability * 100)}% → Decke griffbereit halten`
+        : 'Leichter Regen, Fell wird feucht',
+    };
+  }
+  return {
+    risk: 'dry',
+    reason: humid ? `Luftfeuchte ${Math.round(w.humidity)}%, Fell bleibt trocken` : 'Trocken',
+  };
+}
+
 export function decide(horse: HorseProfile, w: WeatherInput) {
   return {
     blanket: decideBlanket(horse, w),
     grazing: decideGrazing(horse, w),
+    coatWetting: decideCoatWetting(horse, w),
+    weather: w,
     logicVersion: LOGIC_VERSION,
   };
 }

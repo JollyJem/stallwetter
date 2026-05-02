@@ -11,12 +11,20 @@ import {
 import { Link, useFocusEffect } from 'expo-router';
 import { listHorses, type Horse } from '@/lib/storage';
 import { fetchWeather } from '@/lib/weather';
-import { decide, type BlanketResult, type GrazingResult } from '@/lib/decision';
+import {
+  decide,
+  type BlanketResult,
+  type GrazingResult,
+  type CoatWettingResult,
+  type WeatherInput,
+} from '@/lib/decision';
 
 type Row = {
   horse: Horse;
   blanket: BlanketResult;
   grazing: GrazingResult;
+  coatWetting: CoatWettingResult;
+  weather: WeatherInput;
 };
 
 const BLANKET_LABEL: Record<BlanketResult['blanket'], string> = {
@@ -45,6 +53,24 @@ const GRAZING_COLOR: Record<GrazingResult['grazing'], string> = {
   risky: '#dc2626',
 };
 
+const COAT_LABEL: Record<CoatWettingResult['risk'], string> = {
+  dry: 'Fell trocken',
+  damp: 'Fell wird feucht',
+  soaked: 'Durchnässungs-Gefahr',
+};
+
+const COAT_COLOR: Record<CoatWettingResult['risk'], string> = {
+  dry: '#10b981',
+  damp: '#f59e0b',
+  soaked: '#dc2626',
+};
+
+const COAT_ICON: Record<CoatWettingResult['risk'], string> = {
+  dry: '☀️',
+  damp: '🌦️',
+  soaked: '🌧️',
+};
+
 export default function TodayScreen() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,8 +90,15 @@ export default function TodayScreen() {
       for (const h of horses) {
         const key = `${h.lat.toFixed(2)},${h.lng.toFixed(2)}`;
         if (!cache.has(key)) cache.set(key, await fetchWeather(h.lat, h.lng));
-        const d = decide(h, cache.get(key)!);
-        result.push({ horse: h, blanket: d.blanket, grazing: d.grazing });
+        const w = cache.get(key)!;
+        const d = decide(h, w);
+        result.push({
+          horse: h,
+          blanket: d.blanket,
+          grazing: d.grazing,
+          coatWetting: d.coatWetting,
+          weather: w,
+        });
       }
       setRows(result);
     } catch (e) {
@@ -138,11 +171,53 @@ export default function TodayScreen() {
         <View key={row.horse.id} style={styles.card}>
           <Text style={styles.name}>{row.horse.name}</Text>
 
+          <View style={styles.weatherStrip}>
+            <View style={styles.weatherCell}>
+              <Text style={styles.weatherLabel}>Gefühlt min</Text>
+              <Text style={styles.weatherValue}>
+                {Math.round(row.weather.tFeelsLikeMin)}°
+              </Text>
+            </View>
+            <View style={styles.weatherCell}>
+              <Text style={styles.weatherLabel}>Wind</Text>
+              <Text style={styles.weatherValue}>{Math.round(row.weather.windKmh)} km/h</Text>
+            </View>
+            <View style={styles.weatherCell}>
+              <Text style={styles.weatherLabel}>Luftfeuchte</Text>
+              <Text style={styles.weatherValue}>{Math.round(row.weather.humidity)}%</Text>
+            </View>
+            <View style={styles.weatherCell}>
+              <Text style={styles.weatherLabel}>Regen</Text>
+              <Text style={styles.weatherValue}>
+                {row.weather.rainMm < 0.1 ? '0' : row.weather.rainMm.toFixed(1)} mm
+              </Text>
+            </View>
+          </View>
+          {row.weather.locationName ? (
+            <Text style={styles.locationName}>📍 {row.weather.locationName}</Text>
+          ) : null}
+
+          {row.coatWetting.risk !== 'dry' && (
+            <View
+              style={[
+                styles.coatAlert,
+                { backgroundColor: COAT_COLOR[row.coatWetting.risk] },
+              ]}
+            >
+              <Text style={styles.coatIcon}>{COAT_ICON[row.coatWetting.risk]}</Text>
+              <View style={styles.coatTextWrap}>
+                <Text style={styles.coatTitle}>{COAT_LABEL[row.coatWetting.risk]}</Text>
+                <Text style={styles.coatReason}>{row.coatWetting.reason}</Text>
+              </View>
+            </View>
+          )}
+
           <View
             style={[styles.decision, { backgroundColor: BLANKET_COLOR[row.blanket.blanket] }]}
           >
             <Text style={styles.decisionLabel}>Decke</Text>
             <Text style={styles.decisionValue}>{BLANKET_LABEL[row.blanket.blanket]}</Text>
+            <Text style={styles.decisionReason}>{row.blanket.reason}</Text>
           </View>
 
           <View
@@ -150,6 +225,7 @@ export default function TodayScreen() {
           >
             <Text style={styles.decisionLabel}>Weide</Text>
             <Text style={styles.decisionValue}>{GRAZING_LABEL[row.grazing.grazing]}</Text>
+            <Text style={styles.decisionReason}>{row.grazing.reason}</Text>
           </View>
         </View>
       ))}
@@ -190,11 +266,50 @@ const styles = StyleSheet.create({
   },
   name: { fontSize: 28, fontWeight: '900', color: '#111' },
 
+  weatherStrip: {
+    flexDirection: 'row',
+    backgroundColor: '#f3f4f6',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    justifyContent: 'space-between',
+  },
+  weatherCell: { flex: 1, alignItems: 'center' },
+  weatherLabel: {
+    fontSize: 11,
+    color: '#6b7280',
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  weatherValue: { fontSize: 18, fontWeight: '800', color: '#111' },
+  locationName: { fontSize: 12, color: '#6b7280', marginTop: -6 },
+
+  coatAlert: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  coatIcon: { fontSize: 28 },
+  coatTextWrap: { flex: 1 },
+  coatTitle: { color: 'white', fontSize: 16, fontWeight: '800' },
+  coatReason: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 13,
+    marginTop: 2,
+    lineHeight: 18,
+  },
+
   decision: {
     borderRadius: 16,
-    paddingVertical: 24,
+    paddingVertical: 22,
     paddingHorizontal: 20,
     alignItems: 'center',
+    gap: 4,
   },
   decisionLabel: {
     color: 'rgba(255,255,255,0.85)',
@@ -202,13 +317,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1.5,
     textTransform: 'uppercase',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   decisionValue: {
     color: 'white',
-    fontSize: 30,
+    fontSize: 28,
     fontWeight: '900',
     textAlign: 'center',
+  },
+  decisionReason: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 6,
+    lineHeight: 16,
   },
 
   primaryButton: {
