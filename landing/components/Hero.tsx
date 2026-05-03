@@ -1,6 +1,10 @@
+"use client";
+
 import Link from "next/link";
+import { useT } from "@/lib/i18n";
 
 export default function Hero() {
+  const { t } = useT();
   return (
     <section className="relative overflow-hidden">
       <div
@@ -17,17 +21,16 @@ export default function Hero() {
           <div className="max-w-xl">
             <span className="inline-flex items-center gap-2 rounded-full bg-sage-100 px-4 py-1.5 text-sm font-medium text-sage-800 ring-1 ring-sage-200">
               <span aria-hidden className="h-2 w-2 rounded-full bg-sage-500" />
-              Built for everyday horse owners
+              {t("hero.badge")}
             </span>
 
             <h1 className="mt-6 text-4xl font-bold tracking-tight text-sage-900 sm:text-5xl lg:text-6xl">
-              Confident calls for your horse,{" "}
-              <span className="text-sage-600">every morning.</span>
+              {t("hero.title.a")}{" "}
+              <span className="text-sage-600">{t("hero.title.b")}</span>
             </h1>
 
             <p className="mt-6 text-lg leading-relaxed text-sage-800/75 sm:text-xl">
-              StallWetter reads today&apos;s weather, knows your horse, and tells you whether to
-              put the blanket on and whether the pasture is safe — in seconds.
+              {t("hero.body")}
             </p>
 
             <div className="mt-10 flex flex-col gap-4 sm:flex-row">
@@ -35,14 +38,14 @@ export default function Hero() {
                 href="/app/"
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-sage-700 px-8 py-4 text-base font-semibold text-white shadow-lg shadow-sage-700/25 transition hover:bg-sage-800"
               >
-                Open the app
+                {t("hero.cta.openApp")}
                 <span aria-hidden>→</span>
               </Link>
               <Link
                 href="#features"
                 className="inline-flex items-center justify-center rounded-full border border-sage-300 bg-white/70 px-8 py-4 text-base font-semibold text-sage-800 backdrop-blur transition hover:bg-white"
               >
-                See how it works
+                {t("hero.cta.howItWorks")}
               </Link>
             </div>
 
@@ -60,7 +63,7 @@ export default function Hero() {
                   />
                 ))}
               </div>
-              <span>Trusted by stables across Germany &amp; Austria</span>
+              <span>{t("hero.trust")}</span>
             </div>
           </div>
 
@@ -77,25 +80,23 @@ export default function Hero() {
             <div className="relative mx-auto max-w-sm rounded-[2.5rem] border border-sage-200/50 bg-white p-3 shadow-2xl shadow-sage-900/10">
               <div className="rounded-[2rem] bg-gradient-to-b from-sage-50 to-cream-100 p-6">
                 <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-sage-600">
-                  Today · Lotte
+                  {t("hero.card.eyebrow")}
                 </p>
-                <h3 className="mt-2 text-2xl font-bold text-sage-900">Light blanket</h3>
-                <p className="mt-1 text-sm text-sage-700/80">
-                  Min 4&nbsp;°C, wind 28&nbsp;km/h → felt 2&nbsp;°C
-                </p>
+                <h3 className="mt-2 text-2xl font-bold text-sage-900">{t("hero.card.title")}</h3>
+                <p className="mt-1 text-sm text-sage-700/80">{t("hero.card.body")}</p>
 
                 <div className="mt-5 rounded-2xl bg-sage-700 p-5 text-white">
                   <p className="text-[10px] font-bold uppercase tracking-[0.25em] opacity-80">
-                    Grazing
+                    {t("hero.card.grazing")}
                   </p>
-                  <p className="mt-1 text-2xl font-extrabold">Safe</p>
+                  <p className="mt-1 text-2xl font-extrabold">{t("hero.card.safe")}</p>
                 </div>
 
                 <div className="mt-3 rounded-2xl bg-amber-100 p-5 text-amber-900">
                   <p className="text-[10px] font-bold uppercase tracking-[0.25em] opacity-80">
-                    Tomorrow
+                    {t("hero.card.tomorrow")}
                   </p>
-                  <p className="mt-1 text-2xl font-extrabold">Caution · sugar spike</p>
+                  <p className="mt-1 text-2xl font-extrabold">{t("hero.card.caution")}</p>
                 </div>
               </div>
             </div>
