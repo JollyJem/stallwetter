@@ -112,8 +112,10 @@
         if (bl) bl.textContent = cardLabel('blanket');
         var bv = bBadge.querySelector('[data-field="blanket-value"]');
         if (bv) bv.textContent = blanketLabel(blanket.blanket);
+        bBadge.setAttribute('data-blanket-parts', JSON.stringify(blanket.reasonParts || []));
+        bBadge.setAttribute('data-felt-like', String(blanket.feltLike != null ? blanket.feltLike : ''));
         var br = bBadge.querySelector('[data-field="blanket-reason"]');
-        if (br) br.textContent = blanket.reason;
+        if (br) br.textContent = buildBlanketReason(blanket);
       }
 
       var gBadge = node.querySelector('[data-role="grazing-badge"]');
@@ -126,8 +128,9 @@
         if (gl) gl.textContent = cardLabel('grazing');
         var gv = gBadge.querySelector('[data-field="grazing-value"]');
         if (gv) gv.textContent = grazingLabel(grazing.grazing);
+        gBadge.setAttribute('data-reason-codes', (grazing.reasonCodes || []).join(','));
         var gr = gBadge.querySelector('[data-field="grazing-reason"]');
-        if (gr) gr.textContent = grazing.reason;
+        if (gr) gr.textContent = buildGrazingReason(grazing);
 
         var gwl = gBadge.querySelector('[data-field="grazing-window-label"]');
         if (gwl) gwl.textContent = tr('card.grazingWindow');
@@ -163,6 +166,31 @@
       return parts.join(' · ');
     }
 
+    function buildBlanketReason(blanket) {
+      var parts = blanket.reasonParts || [];
+      var bits = [];
+      for (var i = 0; i < parts.length; i++) {
+        var p = parts[i];
+        if (p.code === 'tMin') bits.push(tr('blanket.reason.tMin', { v: p.v }));
+        else if (p.code === 'wind') bits.push(tr('blanket.reason.wind', { v: p.v }));
+        else if (p.code === 'rain') bits.push(tr('blanket.reason.rain', { v: p.v }));
+        else if (p.code === 'sensitive') bits.push(tr('blanket.reason.sensitive'));
+      }
+      var head = bits.join(', ');
+      var feltLike = blanket.feltLike;
+      if (feltLike === undefined || feltLike === null || feltLike === '') return head;
+      return head + ' → ' + tr('blanket.reason.feltLike', { v: feltLike });
+    }
+
+    function buildGrazingReason(grazing) {
+      var codes = grazing.reasonCodes || [];
+      var bits = [];
+      for (var i = 0; i < codes.length; i++) {
+        bits.push(tr('grazing.reason.' + codes[i]));
+      }
+      return bits.join(', ');
+    }
+
     function rerenderLabels() {
       // Re-translate dynamic labels when language changes, without re-fetching.
       refreshDate();
@@ -179,10 +207,31 @@
         var gv = cards[i].querySelector('[data-field="grazing-value"]');
         if (gv && g) gv.textContent = grazingLabel(g);
 
+        var bBadge = cards[i].querySelector('[data-role="blanket-badge"]');
+        if (bBadge) {
+          var partsRaw = bBadge.getAttribute('data-blanket-parts');
+          var feltRaw = bBadge.getAttribute('data-felt-like');
+          if (partsRaw != null) {
+            try {
+              var parsedParts = JSON.parse(partsRaw);
+              var feltLike = feltRaw === '' || feltRaw == null ? undefined : parseInt(feltRaw, 10);
+              var br2 = cards[i].querySelector('[data-field="blanket-reason"]');
+              if (br2) br2.textContent = buildBlanketReason({ reasonParts: parsedParts, feltLike: feltLike });
+            } catch (e) {}
+          }
+        }
+
         var gwl = cards[i].querySelector('[data-field="grazing-window-label"]');
         if (gwl) gwl.textContent = tr('card.grazingWindow');
 
         var gBadge = cards[i].querySelector('[data-role="grazing-badge"]');
+        if (gBadge) {
+          var codesAttr = gBadge.getAttribute('data-reason-codes') || '';
+          var codes = codesAttr ? codesAttr.split(',') : [];
+          var gr2 = cards[i].querySelector('[data-field="grazing-reason"]');
+          if (gr2) gr2.textContent = buildGrazingReason({ reasonCodes: codes });
+        }
+
         var gtRow = cards[i].querySelector('[data-field="grazing-trend-row"]');
         if (gBadge && gtRow) {
           var cycles = parseInt(gBadge.getAttribute('data-cycles') || '0', 10);

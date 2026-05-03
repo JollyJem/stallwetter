@@ -131,12 +131,44 @@
       assertEqual(r.soilFrozen, true);
     });
 
-    test('grazing v2: high risk + 1 cycle short-circuits -> risky with hard reason', function () {
+    test('grazing v2: high risk + 1 cycle short-circuits -> hardStop code', function () {
       var w = defaults(); w.fructanCycles72 = 1;
       var r = grazing({ risk: 'high' }, w);
       assertEqual(r.grazing, 'risky');
       assertEqual(r.bestWindow, '—');
-      assertEqual(r.reason, 'Hufrehe-Risiko + Fruktan-Stress → kein Gras heute');
+      assertEqual((r.reasonCodes || []).join(','), 'hardStop');
+    });
+
+    test('grazing v2: low risk safe -> reasonCodes ["normal"]', function () {
+      var r = grazing({ risk: 'low' }, defaults());
+      assertEqual((r.reasonCodes || []).join(','), 'normal');
+    });
+
+    test('grazing v2: caution emits factor codes', function () {
+      var w = defaults(); w.frostOvernight = true; w.sunnyToday = true;
+      var r = grazing({ risk: 'low' }, w);
+      // caution branch with frost+sun: codes = ['frostNight','sunny']
+      assertEqual((r.reasonCodes || []).join(','), 'frostNight,sunny');
+    });
+
+    test('grazing v2: risky (>=8) emits multipleFactors', function () {
+      var w = defaults();
+      w.fructanCycles72 = 2; w.frostOvernight = true; w.sunnyToday = true;
+      var r = grazing({ risk: 'low' }, w);
+      assertEqual(r.grazing, 'risky');
+      assertEqual((r.reasonCodes || []).join(','), 'multipleFactors');
+    });
+
+    test('blanket: emits reasonParts + feltLike', function () {
+      var d = window.SW.decideBlanket(
+        { clipped: false, sensitive: true },
+        { tMin: 6, windKmh: 30, rainMm: 10 }
+      );
+      assertEqual(Array.isArray(d.reasonParts), true);
+      // tMin always present; wind 25-45 emits wind; rain>5 emits rain; sensitive emits sensitive
+      var codes = d.reasonParts.map(function (p) { return p.code; }).join(',');
+      assertEqual(codes, 'tMin,wind,rain,sensitive');
+      assertEqual(typeof d.feltLike, 'number');
     });
 
     test('grazing v2: high risk + frost+sun short-circuits', function () {
@@ -218,7 +250,7 @@
     });
 
     // ---------- composition ----------
-    test('decide() returns { blanket, grazing, logicVersion: "2.0.0" }', function () {
+    test('decide() returns { blanket, grazing, logicVersion: "2.1.0" }', function () {
       var out = window.SW.decide(
         { clipped: false, sensitive: false, risk: 'low' },
         {
@@ -229,13 +261,13 @@
       );
       if (!out.blanket || typeof out.blanket !== 'object') throw new Error('missing blanket object');
       if (!out.grazing || typeof out.grazing !== 'object') throw new Error('missing grazing object');
-      assertEqual(out.logicVersion, '2.0.0');
+      assertEqual(out.logicVersion, '2.1.0');
       assertEqual(out.blanket.blanket, 'no');
       assertEqual(out.grazing.grazing, 'safe');
     });
 
-    test('LOGIC_VERSION === "2.0.0"', function () {
-      assertEqual(window.SW.LOGIC_VERSION, '2.0.0');
+    test('LOGIC_VERSION === "2.1.0"', function () {
+      assertEqual(window.SW.LOGIC_VERSION, '2.1.0');
     });
 
     render();

@@ -1,34 +1,35 @@
 // Pure rule engine for blanket + grazing decisions.
 //
-// v2.0.0 — multi-day fructan trend + soil-freeze proxy + dynamic safe window.
-// Fructan accumulates over 48-72hr of frost + sun cycles; sunny cold days
-// matter more than cloudy cold days; frozen soil prevents the overnight
-// fructan drop even when air warms above zero.
+// v2.1.0 — emits reason codes (not pre-translated strings) so the UI layer
+// can localize. Multi-day fructan trend + soil-freeze proxy + dynamic safe
+// window. Fructan accumulates over 48-72hr of frost + sun cycles; sunny
+// cold days matter more than cloudy cold days; frozen soil prevents the
+// overnight fructan drop even when air warms above zero.
 (function () {
   'use strict';
 
-  var LOGIC_VERSION = '2.0.0';
+  var LOGIC_VERSION = '2.1.0';
 
   function decideBlanket(horse, w) {
     var tEff = w.tMin;
-    var parts = ['Min ' + Math.round(w.tMin) + ' °C'];
+    var parts = [{ code: 'tMin', v: Math.round(w.tMin) }];
 
     if (w.windKmh > 45) {
       tEff -= 4;
-      parts.push('Wind ' + Math.round(w.windKmh) + ' km/h');
+      parts.push({ code: 'wind', v: Math.round(w.windKmh) });
     } else if (w.windKmh > 25) {
       tEff -= 2;
-      parts.push('Wind ' + Math.round(w.windKmh) + ' km/h');
+      parts.push({ code: 'wind', v: Math.round(w.windKmh) });
     }
 
     if (w.rainMm > 5) {
       tEff -= 2;
-      parts.push('Regen ' + Math.round(w.rainMm) + ' mm');
+      parts.push({ code: 'rain', v: Math.round(w.rainMm) });
     }
 
     if (horse.sensitive) {
       tEff -= 2;
-      parts.push('empfindliches Pferd');
+      parts.push({ code: 'sensitive' });
     }
 
     var blanket;
@@ -45,7 +46,8 @@
 
     return {
       blanket: blanket,
-      reason: parts.join(', ') + ' → gefühlt ' + Math.round(tEff) + ' °C',
+      reasonParts: parts,
+      feltLike: Math.round(tEff),
     };
   }
 
@@ -91,23 +93,23 @@
 
   function decideGrazing(horse, w) {
     var score = 0;
-    var reasons = [];
+    var codes = [];
 
     if (w.fructanCycles72 >= 2) {
       score += 4;
-      reasons.push('Mehrtägige Frost-Sonne-Zyklen');
+      codes.push('cycles.many');
     } else if (w.fructanCycles72 >= 1) {
       score += 2;
-      reasons.push('Frost-Sonne gestern');
+      codes.push('cycles.one');
     }
 
     if (w.frostOvernight) {
       score += 2;
-      reasons.push('Frost in der Nacht');
+      codes.push('frostNight');
     }
     if (w.sunnyToday) {
       score += 2;
-      reasons.push('Sonniger Tag');
+      codes.push('sunny');
     }
     if (w.frostOvernight && w.sunnyToday) {
       score += 1;
@@ -115,7 +117,7 @@
 
     if (w.soilFrozen) {
       score += 3;
-      reasons.push('Boden gefroren – kein Zuckerabbau');
+      codes.push('soilFrozen');
     }
 
     if (w.nowHour >= 13 && w.nowHour <= 19) score += 1;
@@ -134,7 +136,7 @@
       return {
         grazing: 'risky',
         score: score,
-        reason: 'Hufrehe-Risiko + Fruktan-Stress → kein Gras heute',
+        reasonCodes: ['hardStop'],
         bestWindow: '—',
         fructanCycles72: fructanCycles72,
         soilFrozen: soilFrozen,
@@ -142,22 +144,22 @@
     }
 
     var grazing;
-    var summary;
+    var finalCodes;
     if (score <= 3) {
       grazing = 'safe';
-      summary = 'Bedingungen normal, kein Fruktan-Anstieg erwartet';
+      finalCodes = ['normal'];
     } else if (score <= 7) {
       grazing = 'caution';
-      summary = reasons.length > 0 ? reasons.join(', ') : 'Erhöhte Zucker-Faktoren';
+      finalCodes = codes.length > 0 ? codes : ['elevated'];
     } else {
       grazing = 'risky';
-      summary = 'Mehrere Zucker-Faktoren, lieber Paddock + Heu';
+      finalCodes = ['multipleFactors'];
     }
 
     return {
       grazing: grazing,
       score: score,
-      reason: summary,
+      reasonCodes: finalCodes,
       bestWindow: bestWindow,
       fructanCycles72: fructanCycles72,
       soilFrozen: soilFrozen,
