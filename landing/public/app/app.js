@@ -108,6 +108,9 @@
           'badge-blanket-no', 'badge-blanket-light', 'badge-blanket-medium', 'badge-blanket-heavy'
         );
         bBadge.classList.add(BLANKET_BADGE_CLASS[blanket.blanket]);
+        if (bBadge.tagName === 'A') {
+          bBadge.setAttribute('href', 'blanket.html?h=' + encodeURIComponent(horse.id));
+        }
         var bl = bBadge.querySelector('[data-field="blanket-label"]');
         if (bl) bl.textContent = cardLabel('blanket');
         var bv = bBadge.querySelector('[data-field="blanket-value"]');
@@ -124,6 +127,9 @@
           'badge-grazing-safe', 'badge-grazing-caution', 'badge-grazing-risky'
         );
         gBadge.classList.add(GRAZING_BADGE_CLASS[grazing.grazing]);
+        if (gBadge.tagName === 'A') {
+          gBadge.setAttribute('href', 'grazing.html?h=' + encodeURIComponent(horse.id));
+        }
         var gl = gBadge.querySelector('[data-field="grazing-label"]');
         if (gl) gl.textContent = cardLabel('grazing');
         var gv = gBadge.querySelector('[data-field="grazing-value"]');
@@ -483,6 +489,504 @@
     }
   }
 
+  // ---------- Detail helpers (shared) ----------
+  function getQueryParam(name) {
+    var qs = window.location.search || '';
+    var pairs = qs.replace(/^\?/, '').split('&');
+    for (var i = 0; i < pairs.length; i++) {
+      var idx = pairs[i].indexOf('=');
+      if (idx === -1) continue;
+      if (decodeURIComponent(pairs[i].slice(0, idx)) === name) {
+        return decodeURIComponent(pairs[i].slice(idx + 1));
+      }
+    }
+    return null;
+  }
+
+  function buildBlanketReasonText(blanket) {
+    var parts = blanket.reasonParts || [];
+    var bits = [];
+    for (var i = 0; i < parts.length; i++) {
+      var p = parts[i];
+      if (p.code === 'tMin') bits.push(tr('blanket.reason.tMin', { v: p.v }));
+      else if (p.code === 'wind') bits.push(tr('blanket.reason.wind', { v: p.v }));
+      else if (p.code === 'rain') bits.push(tr('blanket.reason.rain', { v: p.v }));
+      else if (p.code === 'sensitive') bits.push(tr('blanket.reason.sensitive'));
+    }
+    var head = bits.join(', ');
+    if (blanket.feltLike == null) return head;
+    return head + ' → ' + tr('blanket.reason.feltLike', { v: blanket.feltLike });
+  }
+
+  function buildGrazingReasonText(grazing) {
+    var codes = grazing.reasonCodes || [];
+    var bits = [];
+    for (var i = 0; i < codes.length; i++) bits.push(tr('grazing.reason.' + codes[i]));
+    return bits.join(', ');
+  }
+
+  function formatElapsed(sinceMs, kind) {
+    var now = Date.now();
+    var diff = Math.max(0, now - sinceMs);
+    var totalMin = Math.floor(diff / 60000);
+    if (totalMin < 60) {
+      return tr('detail.elapsed.' + kind + '.minutes', { m: totalMin });
+    }
+    var h = Math.floor(totalMin / 60);
+    var m = totalMin % 60;
+    return tr('detail.elapsed.' + kind + '.full', { h: h, m: m });
+  }
+
+  // ---------- Decken-Detail (blanket.html) ----------
+  function initBlanket() {
+    var horseId = getQueryParam('h');
+    var loading = $('#loading');
+    var errEl = $('#error-state');
+    var notFound = $('#not-found');
+    var content = $('#content');
+    var nameEl = $('#detail-horse-name');
+    var headline = $('#headline');
+    var headlineValue = headline ? headline.querySelector('[data-field="headline-value"]') : null;
+    var headlineLabel = headline ? headline.querySelector('[data-field="headline-label"]') : null;
+    var headlineReason = headline ? headline.querySelector('[data-field="headline-reason"]') : null;
+    var gramajValue = $('#gramaj-value');
+    var summaryList = $('#summary-list');
+    var segmentsRoot = $('#segments');
+    var tomorrowText = $('#tomorrow-text');
+    var actionBtn = $('#action-btn');
+    var actionElapsed = $('#action-elapsed');
+    var whyList = $('#why-list');
+
+    if (!horseId) {
+      setHidden(notFound, false);
+      return;
+    }
+
+    var ctx = { horse: null, weather: null, decision: null };
+
+    function showError(msg) {
+      if (!errEl) return;
+      errEl.textContent = msg || tr('today.error');
+      setHidden(errEl, false);
+    }
+
+    function renderSummary(b, w) {
+      if (!summaryList) return;
+      summaryList.innerHTML = '';
+      var rows = [
+        tr('detail.summary.felt', { v: b.feltLike != null ? b.feltLike : '—' }),
+        tr('detail.summary.minMax', { min: Math.round(w.tMin), max: Math.round(w.tMaxToday) }),
+        tr('detail.summary.wind', { v: Math.round(w.windKmh) }),
+        tr('detail.summary.rain', { v: Math.round(w.rainMm) }),
+      ];
+      for (var i = 0; i < rows.length; i++) {
+        var li = document.createElement('li');
+        li.textContent = rows[i];
+        summaryList.appendChild(li);
+      }
+    }
+
+    function renderSegments(w) {
+      if (!segmentsRoot) return;
+      segmentsRoot.innerHTML = '';
+      var tomorrowHours = w.tomorrow ? w.tomorrow.tempByHour : [];
+      var segments = SW.blanketSegments(w.tempByHour, tomorrowHours);
+      for (var i = 0; i < segments.length; i++) {
+        var seg = segments[i];
+        var card = document.createElement('div');
+        card.className = 'segment';
+        var label = document.createElement('p');
+        label.className = 'segment-label';
+        label.textContent = tr('detail.hourly.' + seg.key);
+        card.appendChild(label);
+        var range = document.createElement('p');
+        range.className = 'segment-range';
+        range.textContent = tr('detail.hourly.' + seg.key + 'Range');
+        card.appendChild(range);
+        var temp = document.createElement('p');
+        temp.className = 'segment-temp';
+        temp.textContent = seg.data.tempAvg == null ? tr('detail.hourly.noData') : seg.data.tempAvg + '°';
+        card.appendChild(temp);
+        var wind = document.createElement('p');
+        wind.className = 'segment-wind';
+        wind.textContent = seg.data.windMax == null ? '—' : seg.data.windMax + ' km/h';
+        card.appendChild(wind);
+        segmentsRoot.appendChild(card);
+      }
+    }
+
+    function renderTomorrow() {
+      if (!tomorrowText) return;
+      var w = ctx.weather;
+      if (!w || !w.tomorrow) {
+        tomorrowText.textContent = tr('detail.tomorrow.unknown');
+        return;
+      }
+      var todayBlanket = ctx.decision.blanket.blanket;
+      var tomDecision = SW.decideBlanket(ctx.horse, w.tomorrow);
+      var cmp = SW.compareBlanket(tomDecision.blanket, todayBlanket);
+      if (cmp === 0) {
+        tomorrowText.textContent = tr('detail.tomorrow.same');
+      } else if (cmp < 0) {
+        tomorrowText.textContent = tr('detail.tomorrow.warmer', { to: blanketLabel(tomDecision.blanket) });
+      } else {
+        tomorrowText.textContent = tr('detail.tomorrow.colder', { to: blanketLabel(tomDecision.blanket) });
+      }
+    }
+
+    function renderGramaj(b) {
+      if (!gramajValue) return;
+      var g = SW.blanketGramaj(b.blanket);
+      if (!g) {
+        gramajValue.textContent = tr('detail.gramaj.none');
+        return;
+      }
+      gramajValue.textContent = tr('detail.gramaj.' + b.blanket);
+    }
+
+    function renderWhy() {
+      if (!whyList) return;
+      whyList.innerHTML = '';
+      var b = ctx.decision.blanket;
+      var parts = b.reasonParts || [];
+      for (var i = 0; i < parts.length; i++) {
+        var li = document.createElement('li');
+        var p = parts[i];
+        if (p.code === 'tMin') li.textContent = tr('blanket.reason.tMin', { v: p.v });
+        else if (p.code === 'wind') li.textContent = tr('blanket.reason.wind', { v: p.v });
+        else if (p.code === 'rain') li.textContent = tr('blanket.reason.rain', { v: p.v });
+        else if (p.code === 'sensitive') li.textContent = tr('blanket.reason.sensitive');
+        whyList.appendChild(li);
+      }
+      var profileLi = document.createElement('li');
+      var profile = ctx.horse.clipped ? tr('detail.why.profile.clipped') : tr('detail.why.profile.unclipped');
+      if (ctx.horse.sensitive) profile += ', ' + tr('detail.why.profile.sensitive');
+      profileLi.textContent = tr('detail.why.profile') + ': ' + profile;
+      whyList.appendChild(profileLi);
+    }
+
+    function renderActionElapsed() {
+      if (!actionElapsed) return;
+      SW.getLastLogEntry(ctx.horse.id, 'blanket').then(function (entry) {
+        if (!entry || Date.now() - entry.ts > 24 * 3600 * 1000) {
+          setHidden(actionElapsed, true);
+          return;
+        }
+        actionElapsed.textContent = formatElapsed(entry.ts, 'blanket');
+        setHidden(actionElapsed, false);
+      });
+    }
+
+    function renderAll() {
+      var b = ctx.decision.blanket;
+      if (headline) {
+        headline.classList.remove(
+          'badge-blanket-no', 'badge-blanket-light', 'badge-blanket-medium', 'badge-blanket-heavy'
+        );
+        headline.classList.add(BLANKET_BADGE_CLASS[b.blanket]);
+      }
+      if (headlineLabel) headlineLabel.textContent = cardLabel('blanket');
+      if (headlineValue) headlineValue.textContent = blanketLabel(b.blanket);
+      if (headlineReason) headlineReason.textContent = buildBlanketReasonText(b);
+      renderGramaj(b);
+      renderSummary(b, ctx.weather);
+      renderSegments(ctx.weather);
+      renderTomorrow();
+      renderWhy();
+      renderActionElapsed();
+    }
+
+    if (actionBtn) {
+      actionBtn.addEventListener('click', function () {
+        if (!ctx.horse || !ctx.decision) return;
+        SW.addLogEntry({
+          horseId: ctx.horse.id,
+          type: 'blanket',
+          payload: {
+            blanket: ctx.decision.blanket.blanket,
+            gramaj: SW.blanketGramaj(ctx.decision.blanket.blanket),
+          },
+        }).then(function () {
+          actionBtn.textContent = tr('detail.action.blanketDone');
+          actionBtn.setAttribute('data-i18n', 'detail.action.blanketDone');
+          actionBtn.disabled = true;
+          renderActionElapsed();
+        });
+      });
+    }
+
+    setHidden(loading, false);
+    SW.findHorse(horseId)
+      .then(function (horse) {
+        if (!horse) {
+          setHidden(loading, true);
+          setHidden(notFound, false);
+          throw new Error('not found');
+        }
+        ctx.horse = horse;
+        if (nameEl) nameEl.textContent = horse.name;
+        return SW.fetchWeather(horse.lat, horse.lng);
+      })
+      .then(function (w) {
+        ctx.weather = w;
+        ctx.decision = SW.decide(ctx.horse, w);
+        setHidden(loading, true);
+        setHidden(content, false);
+        renderAll();
+      })
+      .catch(function (err) {
+        setHidden(loading, true);
+        if (err && err.message !== 'not found') {
+          showError(err && err.message ? err.message : null);
+        }
+      });
+
+    if (window.SW && SW.i18n && SW.i18n.onChange) {
+      SW.i18n.onChange(function () {
+        if (ctx.decision) renderAll();
+      });
+    }
+  }
+
+  // ---------- Weide-Detail (grazing.html) ----------
+  function initGrazing() {
+    var horseId = getQueryParam('h');
+    var loading = $('#loading');
+    var errEl = $('#error-state');
+    var notFound = $('#not-found');
+    var content = $('#content');
+    var nameEl = $('#detail-horse-name');
+    var headline = $('#headline');
+    var headlineValue = headline ? headline.querySelector('[data-field="headline-value"]') : null;
+    var headlineLabel = headline ? headline.querySelector('[data-field="headline-label"]') : null;
+    var headlineReason = headline ? headline.querySelector('[data-field="headline-reason"]') : null;
+    var windowValue = $('#window-value');
+    var riskBar = $('#risk-bar');
+    var riskAxis = $('#risk-axis');
+    var riskEmpty = $('#risk-empty');
+    var trendRow = $('#trend-row');
+    var actionBtn = $('#action-btn');
+    var actionElapsed = $('#action-elapsed');
+    var whyList = $('#why-list');
+    var areaRow = $('#area-row');
+
+    if (!horseId) {
+      setHidden(notFound, false);
+      return;
+    }
+
+    var ctx = { horse: null, weather: null, decision: null };
+
+    function showError(msg) {
+      if (!errEl) return;
+      errEl.textContent = msg || tr('today.error');
+      setHidden(errEl, false);
+    }
+
+    function renderHeadline(g) {
+      if (headline) {
+        headline.classList.remove(
+          'badge-grazing-safe', 'badge-grazing-caution', 'badge-grazing-risky'
+        );
+        headline.classList.add(GRAZING_BADGE_CLASS[g.grazing]);
+      }
+      if (headlineLabel) headlineLabel.textContent = cardLabel('grazing');
+      if (headlineValue) headlineValue.textContent = grazingLabel(g.grazing);
+      if (headlineReason) headlineReason.textContent = buildGrazingReasonText(g);
+    }
+
+    function renderWindow(g) {
+      if (!windowValue) return;
+      if (!g.bestWindow || g.bestWindow === '—') {
+        windowValue.textContent = tr('detail.window.none');
+      } else {
+        windowValue.textContent = g.bestWindow;
+      }
+    }
+
+    function renderRisk() {
+      if (!riskBar || !riskAxis) return;
+      riskBar.innerHTML = '';
+      riskAxis.innerHTML = '';
+      var hours = SW.hourlyGrazingRisk(ctx.horse, ctx.weather);
+      if (!hours || hours.length === 0) {
+        setHidden(riskEmpty, false);
+        return;
+      }
+      setHidden(riskEmpty, true);
+      for (var i = 0; i < hours.length; i++) {
+        var cell = document.createElement('span');
+        cell.className = 'risk-cell risk-cell--' + hours[i].level;
+        cell.title = pad2(hours[i].hour) + ':00 — ' +
+          (hours[i].temp != null ? Math.round(hours[i].temp) + '°' : '—');
+        riskBar.appendChild(cell);
+      }
+      for (var j = 0; j < hours.length; j++) {
+        var lbl = document.createElement('span');
+        lbl.className = 'risk-axis-label';
+        lbl.textContent = (hours[j].hour % 6 === 0) ? pad2(hours[j].hour) : '';
+        riskAxis.appendChild(lbl);
+      }
+    }
+
+    function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+
+    function renderTrend() {
+      if (!trendRow) return;
+      trendRow.innerHTML = '';
+      var w = ctx.weather;
+      var horse = ctx.horse;
+      var todayLevel = bucketDayLevel(SW.decideGrazing(horse, w).grazing);
+      var tomorrowLevel = w.tomorrow
+        ? bucketDayLevel(SW.decideGrazing(horse, w.tomorrow).grazing)
+        : null;
+      var yesterdayLevel = bucketYesterday(w);
+      var days = [
+        { key: 'yesterday', level: yesterdayLevel },
+        { key: 'today', level: todayLevel },
+        { key: 'tomorrow', level: tomorrowLevel },
+      ];
+      for (var i = 0; i < days.length; i++) {
+        var d = document.createElement('div');
+        d.className = 'trend-day' + (days[i].level ? ' trend-day--' + days[i].level : ' trend-day--unknown');
+        var lbl = document.createElement('span');
+        lbl.className = 'trend-day-label';
+        lbl.textContent = tr('detail.trend.day.' + days[i].key);
+        var dot = document.createElement('span');
+        dot.className = 'trend-day-dot';
+        d.appendChild(lbl);
+        d.appendChild(dot);
+        trendRow.appendChild(d);
+      }
+    }
+
+    function bucketDayLevel(g) {
+      if (g === 'safe') return 'safe';
+      if (g === 'caution') return 'caution';
+      if (g === 'risky') return 'risky';
+      return null;
+    }
+
+    // Cheap proxy: yesterday counts a fructan cycle if at least one happened in
+    // the 72hr window. Without daily-decision recompute, surface caution/risky
+    // when cycles or soil-frozen factors are in play, else safe.
+    function bucketYesterday(w) {
+      if (w.soilFrozen) return 'risky';
+      if (w.fructanCycles72 >= 2) return 'risky';
+      if (w.fructanCycles72 >= 1) return 'caution';
+      return 'safe';
+    }
+
+    function renderWhy() {
+      if (!whyList) return;
+      whyList.innerHTML = '';
+      var g = ctx.decision.grazing;
+      var codes = g.reasonCodes || [];
+      for (var i = 0; i < codes.length; i++) {
+        var li = document.createElement('li');
+        li.textContent = tr('grazing.reason.' + codes[i]);
+        whyList.appendChild(li);
+      }
+      if (g.bestWindow && g.bestWindow !== '—') {
+        var li2 = document.createElement('li');
+        li2.textContent = tr('detail.window.heading') + ': ' + g.bestWindow;
+        whyList.appendChild(li2);
+      }
+      var li3 = document.createElement('li');
+      li3.textContent = tr('detail.why.profile') + ': ' + tr('risk.' + (ctx.horse.risk || 'low'));
+      whyList.appendChild(li3);
+    }
+
+    function renderActionElapsed() {
+      if (!actionElapsed) return;
+      SW.getLastLogEntry(ctx.horse.id, 'grazing').then(function (entry) {
+        if (!entry || Date.now() - entry.ts > 24 * 3600 * 1000) {
+          setHidden(actionElapsed, true);
+          return;
+        }
+        actionElapsed.textContent = formatElapsed(entry.ts, 'grazing');
+        setHidden(actionElapsed, false);
+      });
+    }
+
+    function renderAll() {
+      var g = ctx.decision.grazing;
+      renderHeadline(g);
+      renderWindow(g);
+      renderRisk();
+      renderTrend();
+      renderWhy();
+      renderActionElapsed();
+    }
+
+    if (areaRow) {
+      var areaBtns = areaRow.querySelectorAll('.area-btn');
+      for (var i = 0; i < areaBtns.length; i++) {
+        (function (btn) {
+          btn.addEventListener('click', function () {
+            for (var j = 0; j < areaBtns.length; j++) areaBtns[j].classList.remove('area-btn--active');
+            btn.classList.add('area-btn--active');
+            var radio = btn.querySelector('input[type="radio"]');
+            if (radio) radio.checked = true;
+          });
+        })(areaBtns[i]);
+      }
+    }
+
+    if (actionBtn) {
+      actionBtn.addEventListener('click', function () {
+        if (!ctx.horse || !ctx.decision) return;
+        var areaInput = areaRow ? areaRow.querySelector('input[name="area"]:checked') : null;
+        var area = areaInput ? areaInput.value : 'pasture';
+        SW.addLogEntry({
+          horseId: ctx.horse.id,
+          type: 'grazing',
+          payload: {
+            grazing: ctx.decision.grazing.grazing,
+            area: area,
+          },
+        }).then(function () {
+          actionBtn.textContent = tr('detail.action.grazingDone');
+          actionBtn.setAttribute('data-i18n', 'detail.action.grazingDone');
+          actionBtn.disabled = true;
+          renderActionElapsed();
+        });
+      });
+    }
+
+    setHidden(loading, false);
+    SW.findHorse(horseId)
+      .then(function (horse) {
+        if (!horse) {
+          setHidden(loading, true);
+          setHidden(notFound, false);
+          throw new Error('not found');
+        }
+        ctx.horse = horse;
+        if (nameEl) nameEl.textContent = horse.name;
+        return SW.fetchWeather(horse.lat, horse.lng);
+      })
+      .then(function (w) {
+        ctx.weather = w;
+        ctx.decision = SW.decide(ctx.horse, w);
+        setHidden(loading, true);
+        setHidden(content, false);
+        renderAll();
+      })
+      .catch(function (err) {
+        setHidden(loading, true);
+        if (err && err.message !== 'not found') {
+          showError(err && err.message ? err.message : null);
+        }
+      });
+
+    if (window.SW && SW.i18n && SW.i18n.onChange) {
+      SW.i18n.onChange(function () {
+        if (ctx.decision) renderAll();
+      });
+    }
+  }
+
   function init() {
     var page = document.body && document.body.dataset && document.body.dataset.page;
     if (!page) {
@@ -493,6 +997,8 @@
     if (page === 'today') initToday();
     else if (page === 'horses') initHorses();
     else if (page === 'new') initNew();
+    else if (page === 'blanket') initBlanket();
+    else if (page === 'grazing') initGrazing();
   }
 
   if (document.readyState === 'loading') {

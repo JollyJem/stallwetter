@@ -270,6 +270,107 @@
       assertEqual(window.SW.LOGIC_VERSION, '2.1.0');
     });
 
+    // ---------- blanketGramaj ----------
+    test('blanketGramaj: no -> null', function () {
+      assertEqual(window.SW.blanketGramaj('no'), null);
+    });
+    test('blanketGramaj: light -> 100g', function () {
+      assertEqual(window.SW.blanketGramaj('light'), '100g');
+    });
+    test('blanketGramaj: medium -> 200g', function () {
+      assertEqual(window.SW.blanketGramaj('medium'), '200g');
+    });
+    test('blanketGramaj: heavy -> 300g', function () {
+      assertEqual(window.SW.blanketGramaj('heavy'), '300g');
+    });
+
+    // ---------- compareBlanket ----------
+    test('compareBlanket: same -> 0', function () {
+      assertEqual(window.SW.compareBlanket('light', 'light'), 0);
+    });
+    test('compareBlanket: lighter -> negative', function () {
+      if (!(window.SW.compareBlanket('light', 'medium') < 0)) {
+        throw new Error('expected light < medium');
+      }
+    });
+    test('compareBlanket: heavier -> positive', function () {
+      if (!(window.SW.compareBlanket('heavy', 'medium') > 0)) {
+        throw new Error('expected heavy > medium');
+      }
+    });
+
+    // ---------- hourlyGrazingRisk ----------
+    test('hourlyGrazingRisk: low risk warm hour -> safe', function () {
+      var w = { tempByHour: [{ hour: 12, temp: 10, cloud: 50 }], soilFrozen: false };
+      var arr = window.SW.hourlyGrazingRisk({ risk: 'low' }, w);
+      assertEqual(arr.length, 1);
+      assertEqual(arr[0].level, 'safe');
+    });
+
+    test('hourlyGrazingRisk: low risk freezing hour -> risky', function () {
+      var w = { tempByHour: [{ hour: 4, temp: -2, cloud: 10 }], soilFrozen: false };
+      var arr = window.SW.hourlyGrazingRisk({ risk: 'low' }, w);
+      assertEqual(arr[0].level, 'risky');
+    });
+
+    test('hourlyGrazingRisk: soil frozen forces risky', function () {
+      var w = { tempByHour: [{ hour: 12, temp: 15, cloud: 80 }], soilFrozen: true };
+      var arr = window.SW.hourlyGrazingRisk({ risk: 'low' }, w);
+      assertEqual(arr[0].level, 'risky');
+    });
+
+    test('hourlyGrazingRisk: high risk same warmth tighter than low', function () {
+      var w = { tempByHour: [{ hour: 12, temp: 7, cloud: 50 }], soilFrozen: false };
+      var lowArr = window.SW.hourlyGrazingRisk({ risk: 'low' }, w);
+      var highArr = window.SW.hourlyGrazingRisk({ risk: 'high' }, w);
+      assertEqual(lowArr[0].level, 'safe');
+      assertEqual(highArr[0].level, 'caution');
+    });
+
+    test('hourlyGrazingRisk: missing tempByHour returns []', function () {
+      var arr = window.SW.hourlyGrazingRisk({ risk: 'low' }, {});
+      assertEqual(arr.length, 0);
+    });
+
+    // ---------- blanketSegments ----------
+    test('blanketSegments: morning aggregates 06-11', function () {
+      var today = [];
+      for (var h = 0; h < 24; h++) {
+        today.push({ hour: h, temp: h, cloud: 50, wind: h * 2 });
+      }
+      var segs = window.SW.blanketSegments(today, []);
+      assertEqual(segs.length, 4);
+      assertEqual(segs[0].key, 'morning');
+      // 06..11 avg = 8.5 -> rounds to 9 (Math.round)
+      assertEqual(segs[0].data.tempAvg, 9);
+      // wind max 11*2 = 22
+      assertEqual(segs[0].data.windMax, 22);
+    });
+
+    test('blanketSegments: night merges today 21-23 + tomorrow 00-05', function () {
+      var today = [
+        { hour: 21, temp: 5, cloud: 60, wind: 10 },
+        { hour: 22, temp: 4, cloud: 60, wind: 12 },
+        { hour: 23, temp: 3, cloud: 60, wind: 14 },
+      ];
+      var tomorrow = [
+        { hour: 0, temp: 2, cloud: 70, wind: 16 },
+        { hour: 5, temp: 0, cloud: 80, wind: 8 },
+      ];
+      var segs = window.SW.blanketSegments(today, tomorrow);
+      var night = segs[3];
+      assertEqual(night.key, 'night');
+      // (5+4+3+2+0)/5 = 2.8 -> 3
+      assertEqual(night.data.tempAvg, 3);
+      assertEqual(night.data.windMax, 16);
+    });
+
+    test('blanketSegments: empty input -> nulls', function () {
+      var segs = window.SW.blanketSegments([], []);
+      assertEqual(segs[0].data.tempAvg, null);
+      assertEqual(segs[3].data.windMax, null);
+    });
+
     render();
   }
 

@@ -35,11 +35,13 @@
     var today = new Date();
     var startDate = new Date(today);
     startDate.setDate(startDate.getDate() - 3);
+    var endDate = new Date(today);
+    endDate.setDate(endDate.getDate() + 1);
 
     var url =
       'https://api.brightsky.dev/weather?lat=' + lat + '&lon=' + lng +
       '&date=' + dateKey(startDate) +
-      '&last_date=' + dateKey(today);
+      '&last_date=' + dateKey(endDate);
 
     return fetch(url)
       .then(function (res) {
@@ -152,8 +154,53 @@
 
         todayHours.sort(function (a, b) { return a.hour - b.hour; });
         var tempByHour = todayHours.map(function (x) {
-          return { hour: x.hour, temp: x.temp, cloud: x.cloud };
+          return { hour: x.hour, temp: x.temp, cloud: x.cloud, wind: x.wind };
         });
+
+        var tomorrowDate = new Date(today);
+        tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+        var tomorrowKey = dateKey(tomorrowDate);
+        var tomorrowHours = [];
+        for (var jt = 0; jt < annotated.length; jt++) {
+          if (annotated[jt].date === tomorrowKey) tomorrowHours.push(annotated[jt]);
+        }
+        tomorrowHours.sort(function (a, b) { return a.hour - b.hour; });
+
+        var tomorrow = null;
+        if (tomorrowHours.length > 0) {
+          var tomTemps = tomorrowHours.map(function (x) { return x.temp; }).filter(notNull);
+          var tomWinds = tomorrowHours.map(function (x) { return x.wind; }).filter(notNull);
+          var tomRain = tomorrowHours
+            .map(function (x) { return x.rain; })
+            .filter(notNull)
+            .reduce(function (a, b) { return a + b; }, 0);
+          var tomOvernight = tomorrowHours
+            .filter(function (x) { return x.hour <= 6; })
+            .map(function (x) { return x.temp; })
+            .filter(notNull);
+          var tomDayClouds = tomorrowHours
+            .filter(function (x) { return x.hour >= 10 && x.hour <= 16; })
+            .map(function (x) { return x.cloud; })
+            .filter(notNull);
+          var tomAvgClouds = avg(tomDayClouds);
+          if (tomAvgClouds === null) tomAvgClouds = 100;
+          tomorrow = {
+            tMin: tomTemps.length > 0 ? Math.min.apply(null, tomTemps) : 0,
+            tMaxToday: tomTemps.length > 0 ? Math.max.apply(null, tomTemps) : 0,
+            windKmh: tomWinds.length > 0 ? Math.max.apply(null, tomWinds) : 0,
+            rainMm: tomRain,
+            frostOvernight:
+              tomOvernight.length > 0 && Math.min.apply(null, tomOvernight) < 2,
+            sunnyToday: tomAvgClouds < 40,
+            avgClouds: tomAvgClouds,
+            nowHour: 12,
+            fructanCycles72: fructanCycles72,
+            soilFrozen: soilFrozen,
+            tempByHour: tomorrowHours.map(function (x) {
+              return { hour: x.hour, temp: x.temp, cloud: x.cloud, wind: x.wind };
+            }),
+          };
+        }
 
         var result = {
           tMin: tMin,
@@ -170,6 +217,7 @@
           fructanCycles72: fructanCycles72,
           soilFrozen: soilFrozen,
           tempByHour: tempByHour,
+          tomorrow: tomorrow,
         };
         cache[key] = { data: result, expiresAt: Date.now() + TTL_MS };
         return result;

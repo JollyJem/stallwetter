@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <base href="/app/" />
+  <title>StallWetter — Decken-Empfehlung</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="/favicon.ico" />
+</head>
+<body data-page="blanket">
+  <header class="app-header">
+    <div class="app-header-row">
+      <div class="app-header-text">
+        <h1><img class="app-logo" src="/logo.png" alt="" />StallWetter</h1>
+        <p class="tagline" data-i18n="app.tagline">Decke &amp; Weide für dein Pferd</p>
+      </div>
+      <div class="lang-switcher" role="group" data-i18n-aria-label="lang.aria">
+        <button type="button" class="lang-btn" data-lang-btn="de" aria-pressed="true">DE</button>
+        <button type="button" class="lang-btn" data-lang-btn="en" aria-pressed="false">EN</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container detail">
+    <a href="index.html" class="back-link" data-i18n="detail.back">← Zurück</a>
+
+    <h2 class="heading detail-heading" data-i18n="detail.blanket.heading">Decken-Empfehlung</h2>
+    <p class="subheading detail-horse-name" id="detail-horse-name"></p>
+
+    <div id="loading" class="loading" data-i18n="detail.loading" hidden>Wetterdaten werden geladen…</div>
+    <div id="error-state" class="error" hidden></div>
+    <div id="not-found" class="error" data-i18n="detail.notFound" hidden>Pferd nicht gefunden.</div>
+
+    <section id="content" hidden>
+      <div class="badge badge-blanket-no detail-headline" id="headline">
+        <span class="label" data-field="headline-label">Decke</span>
+        <span class="value" data-field="headline-value">—</span>
+        <span class="reason" data-field="headline-reason"></span>
+      </div>
+
+      <section class="card detail-card">
+        <h3 class="detail-card-title" data-i18n="detail.gramaj.heading">Welche Decke?</h3>
+        <p class="gramaj-value" id="gramaj-value">—</p>
+        <p class="hint" data-i18n="detail.gramaj.hint">Faustregel: Füllgewicht in g/m²</p>
+      </section>
+
+      <section class="card detail-card">
+        <h3 class="detail-card-title" data-i18n="detail.summary.heading">Heute</h3>
+        <ul class="summary-list" id="summary-list"></ul>
+      </section>
+
+      <section class="card detail-card">
+        <h3 class="detail-card-title" data-i18n="detail.hourly.heading">Tagesverlauf</h3>
+        <div class="segments" id="segments"></div>
+      </section>
+
+      <section class="card detail-card">
+        <h3 class="detail-card-title" data-i18n="detail.tomorrow.heading">Morgen</h3>
+        <p class="tomorrow-text" id="tomorrow-text">—</p>
+      </section>
+
+      <section class="card detail-card detail-action-card">
+        <button type="button" class="btn-primary btn-block" id="action-btn" data-i18n="detail.action.blanket">
+          Decke aufgelegt
+        </button>
+        <p class="action-elapsed" id="action-elapsed" hidden></p>
+        <a href="horses.html" class="btn-outline btn-block" style="margin-top: 10px;" data-i18n="detail.editHorse">Pferd bearbeiten</a>
+      </section>
+
+      <details class="why-box">
+        <summary data-i18n="detail.why.heading">Warum diese Empfehlung?</summary>
+        <ul class="why-list" id="why-list"></ul>
+      </details>
+    </section>
+  </main>
+
+  <script src="lib/i18n.js"></script>
+  <script src="lib/storage.js"></script>
+  <script src="lib/weather.js"></script>
+  <script src="lib/decision.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
