@@ -22,6 +22,10 @@
 
       'card.blanket': 'Decke',
       'card.grazing': 'Weide',
+      'card.grazingWindow': 'Beste Zeit',
+      'card.grazingTrend': '3-Tage-Trend',
+      'trend.cycle': 'Frost & Sonne',
+      'trend.soil': 'Boden gefroren',
       'blanket.no': 'Keine Decke',
       'blanket.light': 'Leichte Decke',
       'blanket.medium': 'Mittlere Decke',
@@ -97,6 +101,10 @@
 
       'card.blanket': 'Blanket',
       'card.grazing': 'Grazing',
+      'card.grazingWindow': 'Best time',
+      'card.grazingTrend': '3-day trend',
+      'trend.cycle': 'frost & sun',
+      'trend.soil': 'soil frozen',
       'blanket.no': 'No blanket',
       'blanket.light': 'Light blanket',
       'blanket.medium': 'Medium blanket',

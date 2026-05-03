@@ -128,9 +128,39 @@
         if (gv) gv.textContent = grazingLabel(grazing.grazing);
         var gr = gBadge.querySelector('[data-field="grazing-reason"]');
         if (gr) gr.textContent = grazing.reason;
+
+        var gwl = gBadge.querySelector('[data-field="grazing-window-label"]');
+        if (gwl) gwl.textContent = tr('card.grazingWindow');
+        var gwv = gBadge.querySelector('[data-field="grazing-window-value"]');
+        if (gwv) gwv.textContent = grazing.bestWindow || '—';
+
+        gBadge.setAttribute('data-cycles', String(grazing.fructanCycles72 || 0));
+        gBadge.setAttribute('data-soil-frozen', grazing.soilFrozen ? '1' : '0');
+
+        var gtRow = gBadge.querySelector('[data-field="grazing-trend-row"]');
+        var gtLabel = gBadge.querySelector('[data-field="grazing-trend-label"]');
+        var gtVal = gBadge.querySelector('[data-field="grazing-trend-value"]');
+        var trendText = buildTrendText(grazing);
+        if (gtRow) {
+          if (trendText) {
+            setHidden(gtRow, false);
+            if (gtLabel) gtLabel.textContent = tr('card.grazingTrend');
+            if (gtVal) gtVal.textContent = trendText;
+          } else {
+            setHidden(gtRow, true);
+          }
+        }
       }
 
       listSection.appendChild(node);
+    }
+
+    function buildTrendText(grazing) {
+      var parts = [];
+      var cycles = grazing.fructanCycles72 || 0;
+      if (cycles >= 1) parts.push(cycles + '× ' + tr('trend.cycle'));
+      if (grazing.soilFrozen) parts.push(tr('trend.soil'));
+      return parts.join(' · ');
     }
 
     function rerenderLabels() {
@@ -148,9 +178,27 @@
         if (gl) gl.textContent = cardLabel('grazing');
         var gv = cards[i].querySelector('[data-field="grazing-value"]');
         if (gv && g) gv.textContent = grazingLabel(g);
+
+        var gwl = cards[i].querySelector('[data-field="grazing-window-label"]');
+        if (gwl) gwl.textContent = tr('card.grazingWindow');
+
+        var gBadge = cards[i].querySelector('[data-role="grazing-badge"]');
+        var gtRow = cards[i].querySelector('[data-field="grazing-trend-row"]');
+        if (gBadge && gtRow) {
+          var cycles = parseInt(gBadge.getAttribute('data-cycles') || '0', 10);
+          var soilFrozen = gBadge.getAttribute('data-soil-frozen') === '1';
+          var trendText = buildTrendText({ fructanCycles72: cycles, soilFrozen: soilFrozen });
+          if (trendText) {
+            setHidden(gtRow, false);
+            var gtLabel = cards[i].querySelector('[data-field="grazing-trend-label"]');
+            if (gtLabel) gtLabel.textContent = tr('card.grazingTrend');
+            var gtVal = cards[i].querySelector('[data-field="grazing-trend-value"]');
+            if (gtVal) gtVal.textContent = trendText;
+          } else {
+            setHidden(gtRow, true);
+          }
+        }
       }
-      // Note: blanket.reason / grazing.reason come from the rule engine in
-      // German; left as-is for now.
     }
 
     function load() {

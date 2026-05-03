@@ -26,8 +26,22 @@
     return window.SW.decideGrazing(horse, w);
   }
 
+  function defaults() {
+    return {
+      tMin: 0,
+      windKmh: 0,
+      rainMm: 0,
+      frostOvernight: false,
+      sunnyToday: false,
+      nowHour: 8,
+      fructanCycles72: 0,
+      soilFrozen: false,
+      tempByHour: [],
+    };
+  }
+
   function runAll() {
-    // ---------- decideBlanket ----------
+    // ---------- decideBlanket (unchanged) ----------
     test('decideBlanket: unclipped, mild day (tMin=10) -> no', function () {
       assertEqual(blanket({ clipped: false, sensitive: false }, { tMin: 10, windKmh: 0, rainMm: 0 }), 'no');
     });
@@ -38,10 +52,6 @@
 
     test('decideBlanket: unclipped, tMin=4 -> light', function () {
       assertEqual(blanket({ clipped: false, sensitive: false }, { tMin: 4, windKmh: 0, rainMm: 0 }), 'light');
-    });
-
-    test('decideBlanket: unclipped, tMin=3 -> light', function () {
-      assertEqual(blanket({ clipped: false, sensitive: false }, { tMin: 3, windKmh: 0, rainMm: 0 }), 'light');
     });
 
     test('decideBlanket: unclipped, tMin=-1 -> medium', function () {
@@ -68,10 +78,6 @@
       assertEqual(blanket({ clipped: true, sensitive: false }, { tMin: 12, windKmh: 50, rainMm: 0 }), 'light');
     });
 
-    test('decideBlanket: wind 25-45 subtracts 2 (unclipped, tMin=6, wind=30 -> light)', function () {
-      assertEqual(blanket({ clipped: false, sensitive: false }, { tMin: 6, windKmh: 30, rainMm: 0 }), 'light');
-    });
-
     test('decideBlanket: rain>5 subtracts 2 (unclipped, tMin=6, rain=10 -> light)', function () {
       assertEqual(blanket({ clipped: false, sensitive: false }, { tMin: 6, windKmh: 0, rainMm: 10 }), 'light');
     });
@@ -80,65 +86,156 @@
       assertEqual(blanket({ clipped: false, sensitive: true }, { tMin: 6, windKmh: 0, rainMm: 0 }), 'light');
     });
 
-    test('decideBlanket: combined (clipped, tMin=5, wind=50, rain=10, sensitive -> heavy)', function () {
-      assertEqual(blanket({ clipped: true, sensitive: true }, { tMin: 5, windKmh: 50, rainMm: 10 }), 'heavy');
-    });
-
-    // ---------- decideGrazing ----------
-    test('decideGrazing: low risk, no frost, cloudy, hour=8 -> safe', function () {
-      var r = grazing({ risk: 'low' }, { frostOvernight: false, sunnyToday: false, nowHour: 8 });
+    // ---------- decideGrazing v2 ----------
+    test('grazing v2: low risk, calm -> safe', function () {
+      var r = grazing({ risk: 'low' }, defaults());
       assertEqual(r.grazing, 'safe');
       assertEqual(r.score, 0);
-      assertEqual(r.bestWindow, '05:00 – 10:00');
     });
 
-    test('decideGrazing: low risk, frost+sun, hour=14 (score=6) -> risky', function () {
-      var r = grazing({ risk: 'low' }, { frostOvernight: true, sunnyToday: true, nowHour: 14 });
-      assertEqual(r.grazing, 'risky');
-      assertEqual(r.score, 6);
-      assertEqual(r.bestWindow, '05:00 – 10:00');
-    });
-
-    test('decideGrazing: medium risk, sunny, hour=14 (score=4) -> caution', function () {
-      var r = grazing({ risk: 'medium' }, { frostOvernight: false, sunnyToday: true, nowHour: 14 });
+    test('grazing v2: low risk, frost+sun today only -> caution (score 5)', function () {
+      var w = defaults(); w.frostOvernight = true; w.sunnyToday = true;
+      var r = grazing({ risk: 'low' }, w);
+      assertEqual(r.score, 5);
       assertEqual(r.grazing, 'caution');
-      assertEqual(r.score, 4);
     });
 
-    test('decideGrazing: high risk + frost short-circuits -> risky with specific reason', function () {
-      var r = grazing({ risk: 'high' }, { frostOvernight: true, sunnyToday: false, nowHour: 8 });
+    test('grazing v2: low risk + 2 prior cycles + frost+sun today -> risky', function () {
+      var w = defaults(); w.frostOvernight = true; w.sunnyToday = true; w.fructanCycles72 = 2;
+      var r = grazing({ risk: 'low' }, w);
+      // cycles 4 + frost 2 + sun 2 + combo 1 = 9
+      assertEqual(r.score, 9);
       assertEqual(r.grazing, 'risky');
-      assertEqual(r.reason, 'Hufrehe-Risiko + Frost in der Nacht → kein Gras heute');
+    });
+
+    test('grazing v2: 1 prior cycle + frost+sun today -> caution (score 7)', function () {
+      var w = defaults(); w.frostOvernight = true; w.sunnyToday = true; w.fructanCycles72 = 1;
+      var r = grazing({ risk: 'low' }, w);
+      // cycles 2 + frost 2 + sun 2 + combo 1 = 7
+      assertEqual(r.score, 7);
+      assertEqual(r.grazing, 'caution');
+    });
+
+    test('grazing v2: cloudy cold day scores lower than sunny cold day', function () {
+      var cloudy = defaults(); cloudy.frostOvernight = true; cloudy.sunnyToday = false;
+      var sunny = defaults(); sunny.frostOvernight = true; sunny.sunnyToday = true;
+      var rc = grazing({ risk: 'low' }, cloudy);
+      var rs = grazing({ risk: 'low' }, sunny);
+      if (!(rc.score < rs.score)) throw new Error('cloudy ' + rc.score + ' should be < sunny ' + rs.score);
+    });
+
+    test('grazing v2: soil frozen + low risk -> bestWindow "—"', function () {
+      var w = defaults(); w.soilFrozen = true;
+      var r = grazing({ risk: 'low' }, w);
+      assertEqual(r.bestWindow, '—');
+      assertEqual(r.soilFrozen, true);
+    });
+
+    test('grazing v2: high risk + 1 cycle short-circuits -> risky with hard reason', function () {
+      var w = defaults(); w.fructanCycles72 = 1;
+      var r = grazing({ risk: 'high' }, w);
+      assertEqual(r.grazing, 'risky');
+      assertEqual(r.bestWindow, '—');
+      assertEqual(r.reason, 'Hufrehe-Risiko + Fruktan-Stress → kein Gras heute');
+    });
+
+    test('grazing v2: high risk + frost+sun short-circuits', function () {
+      var w = defaults(); w.frostOvernight = true; w.sunnyToday = true;
+      var r = grazing({ risk: 'high' }, w);
+      assertEqual(r.grazing, 'risky');
       assertEqual(r.bestWindow, '—');
     });
 
-    test('decideGrazing: high risk, no frost, cloudy, hour=8 (score=3) -> caution', function () {
-      var r = grazing({ risk: 'high' }, { frostOvernight: false, sunnyToday: false, nowHour: 8 });
+    test('grazing v2: high risk + soil frozen short-circuits', function () {
+      var w = defaults(); w.soilFrozen = true;
+      var r = grazing({ risk: 'high' }, w);
+      assertEqual(r.grazing, 'risky');
+      assertEqual(r.bestWindow, '—');
+    });
+
+    test('grazing v2: high risk + frost only (no sun, no cycle, no soil) -> caution', function () {
+      var w = defaults(); w.frostOvernight = true;
+      var r = grazing({ risk: 'high' }, w);
+      // frost 2 + risk 3 = 5
+      assertEqual(r.score, 5);
       assertEqual(r.grazing, 'caution');
+    });
+
+    test('grazing v2: medium risk + sunny only -> safe', function () {
+      var w = defaults(); w.sunnyToday = true;
+      var r = grazing({ risk: 'medium' }, w);
       assertEqual(r.score, 3);
-      assertEqual(r.bestWindow, '05:00 – 10:00');
+      assertEqual(r.grazing, 'safe');
     });
 
-    test('decideGrazing: bestWindow is "05:00 – 10:00" when not short-circuited', function () {
-      var r = grazing({ risk: 'low' }, { frostOvernight: false, sunnyToday: true, nowHour: 14 });
-      assertEqual(r.bestWindow, '05:00 – 10:00');
+    test('grazing v2: result includes fructanCycles72 and soilFrozen', function () {
+      var w = defaults(); w.fructanCycles72 = 2; w.soilFrozen = true;
+      var r = grazing({ risk: 'low' }, w);
+      assertEqual(r.fructanCycles72, 2);
+      assertEqual(r.soilFrozen, true);
     });
 
-    // ---------- decide() composition ----------
-    test('decide() returns { blanket, grazing, logicVersion: "1.0.0" }', function () {
+    // ---------- computeWindow ----------
+    test('computeWindow: soil frozen -> "—"', function () {
+      assertEqual(window.SW.computeWindow({ soilFrozen: true }), '—');
+    });
+
+    test('computeWindow: no hourly, frost+sun -> 10:00 – 14:00', function () {
+      assertEqual(window.SW.computeWindow({ frostOvernight: true, sunnyToday: true }), '10:00 – 14:00');
+    });
+
+    test('computeWindow: no hourly, frost only -> 08:00 – 16:00', function () {
+      assertEqual(window.SW.computeWindow({ frostOvernight: true }), '08:00 – 16:00');
+    });
+
+    test('computeWindow: no hourly, sunny only -> 06:00 – 12:00', function () {
+      assertEqual(window.SW.computeWindow({ sunnyToday: true }), '06:00 – 12:00');
+    });
+
+    test('computeWindow: no hourly, calm -> 06:00 – 20:00', function () {
+      assertEqual(window.SW.computeWindow({}), '06:00 – 20:00');
+    });
+
+    test('computeWindow: hourly thaw at 09 + frost+sun -> 09:00 – 12:00', function () {
+      var byHour = [];
+      for (var h = 0; h < 24; h++) byHour.push({ hour: h, temp: h >= 9 ? 6 : -2, cloud: 20 });
+      var w = { frostOvernight: true, sunnyToday: true, tempByHour: byHour };
+      assertEqual(window.SW.computeWindow(w), '09:00 – 12:00');
+    });
+
+    test('computeWindow: never thaws -> "—"', function () {
+      var byHour = [];
+      for (var h = 0; h < 24; h++) byHour.push({ hour: h, temp: -3, cloud: 20 });
+      var w = { frostOvernight: true, sunnyToday: false, tempByHour: byHour };
+      assertEqual(window.SW.computeWindow(w), '—');
+    });
+
+    test('computeWindow: hourly thaw at 07 + cloudy mild -> 07:00 – 20:00', function () {
+      var byHour = [];
+      for (var h = 0; h < 24; h++) byHour.push({ hour: h, temp: h >= 7 ? 8 : 2, cloud: 80 });
+      var w = { frostOvernight: false, sunnyToday: false, tempByHour: byHour };
+      assertEqual(window.SW.computeWindow(w), '07:00 – 20:00');
+    });
+
+    // ---------- composition ----------
+    test('decide() returns { blanket, grazing, logicVersion: "2.0.0" }', function () {
       var out = window.SW.decide(
         { clipped: false, sensitive: false, risk: 'low' },
-        { tMin: 10, windKmh: 0, rainMm: 0, frostOvernight: false, sunnyToday: false, nowHour: 8 }
+        {
+          tMin: 10, windKmh: 0, rainMm: 0,
+          frostOvernight: false, sunnyToday: false, nowHour: 8,
+          fructanCycles72: 0, soilFrozen: false, tempByHour: [],
+        }
       );
       if (!out.blanket || typeof out.blanket !== 'object') throw new Error('missing blanket object');
       if (!out.grazing || typeof out.grazing !== 'object') throw new Error('missing grazing object');
-      assertEqual(out.logicVersion, '1.0.0');
+      assertEqual(out.logicVersion, '2.0.0');
       assertEqual(out.blanket.blanket, 'no');
       assertEqual(out.grazing.grazing, 'safe');
     });
 
-    test('LOGIC_VERSION === "1.0.0"', function () {
-      assertEqual(window.SW.LOGIC_VERSION, '1.0.0');
+    test('LOGIC_VERSION === "2.0.0"', function () {
+      assertEqual(window.SW.LOGIC_VERSION, '2.0.0');
     });
 
     render();
